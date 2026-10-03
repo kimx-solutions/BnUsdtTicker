@@ -73,12 +73,6 @@ public sealed class WindowTests
                 invokeSort.Invoke();
                 application.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
                 Assert.Equal(new[] { "BTC", "ETH", "ENA" }, ticker.Prices.Select(p => p.Asset));
-                ticker.Configure(new() { Symbols = Enumerable.Range(1, 25).Select(i => new SymbolSetting { Symbol = $"TEST{i}USDT", Order = i }).ToList() });
-                tickerWindow.MaxHeight = 300; tickerWindow.UpdateLayout();
-                var priceScroll = Descendants<ScrollViewer>(tickerWindow).Single();
-                Assert.True(priceScroll.ViewportHeight < priceScroll.ExtentHeight, "Long watchlists must scroll inside small work areas");
-                Assert.True(tickerWindow.ActualHeight <= 300);
-                tickerWindow.Close();
                 var settingsVm = new SettingsViewModel(new(), new NoNetwork());
                 var settingsWindow = new SettingsWindow(settingsVm, _ => Task.FromResult(true)) { ShowActivated = false };
                 Assert.Equal(WindowStartupLocation.Manual, settingsWindow.WindowStartupLocation);
@@ -87,10 +81,48 @@ public sealed class WindowTests
                 Render(settingsWindow, "settings-preview.png");
                 Assert.NotNull(settingsWindow.Icon);
                 Assert.Equal(settingsVm, settingsWindow.DataContext);
+                var themeButton = tickerWindow.FindName("ThemeToggleButton") as Button;
+                Assert.NotNull(themeButton);
+                var theme = ColorTheme.Dark;
+                var switches = 0;
+                tickerWindow.ThemeRequested += () =>
+                {
+                    theme = theme == ColorTheme.Dark ? ColorTheme.Light : ColorTheme.Dark;
+                    ThemeService.Apply(theme); ticker.SetTheme(theme); settingsWindow.RefreshTheme(); switches++;
+                };
+                var toggleTheme = (IInvokeProvider)new ButtonAutomationPeer(themeButton).GetPattern(PatternInterface.Invoke);
+                var darkTickerText = tickerWindow.Foreground;
+                var darkSettingsBackground = settingsWindow.Background;
+                var symbolList = Descendants<ListBox>(settingsWindow).Single();
+                var darkListText = symbolList.Foreground;
+                toggleTheme.Invoke();
+                application.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+                Assert.Equal(1, switches);
+                Assert.True(ticker.IsLightTheme);
+                Assert.Equal("切換為深色模式", themeButton.ToolTip);
+                Assert.NotEqual(darkTickerText, tickerWindow.Foreground);
+                Assert.NotEqual(darkSettingsBackground, settingsWindow.Background);
+                Assert.NotEqual(darkListText, symbolList.Foreground);
+                Render(tickerWindow, "ticker-light-preview.png");
+                Render(settingsWindow, "settings-light-preview.png");
+                using (var lightTray = new TrayIconService(application.Dispatcher, () => { }, () => { }, _ => { }, () => { }))
+                    RenderTrayMenu(lightTray, "tray-menu-light-preview.png");
+                toggleTheme.Invoke();
+                application.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+                Assert.Equal(2, switches);
+                Assert.False(ticker.IsLightTheme);
+                Assert.Equal("切換為淺色模式", themeButton.ToolTip);
+                Assert.Equal(((SolidColorBrush)darkTickerText).Color, ((SolidColorBrush)tickerWindow.Foreground).Color);
+                Assert.Equal(((SolidColorBrush)darkSettingsBackground).Color, ((SolidColorBrush)settingsWindow.Background).Color);
+                ticker.Configure(new() { Symbols = Enumerable.Range(1, 25).Select(i => new SymbolSetting { Symbol = $"TEST{i}USDT", Order = i }).ToList() });
+                tickerWindow.MaxHeight = 300; tickerWindow.UpdateLayout();
+                var priceScroll = Descendants<ScrollViewer>(tickerWindow).Single();
+                Assert.True(priceScroll.ViewportHeight < priceScroll.ExtentHeight, "Long watchlists must scroll inside small work areas");
+                Assert.True(tickerWindow.ActualHeight <= 300);
+                tickerWindow.Close();
                 var checkbox = Descendants<CheckBox>(settingsWindow).First(c => c.DataContext is SymbolSetting s && s.Symbol == "ETHUSDT");
                 checkbox.RaiseEvent(new MouseButtonEventArgs(Mouse.PrimaryDevice, 0, MouseButton.Left)
                 { RoutedEvent = Mouse.PreviewMouseDownEvent });
-                var symbolList = Descendants<ListBox>(settingsWindow).Single();
                 Assert.NotNull(symbolList.SelectedItem);
                 application.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.DataBind);
                 Assert.Equal("ETHUSDT", settingsVm.SelectedSymbol?.Symbol);

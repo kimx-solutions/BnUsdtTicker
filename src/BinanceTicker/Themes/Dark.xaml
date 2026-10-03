@@ -1,0 +1,34 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <SolidColorBrush x:Key="SettingsBackground" Color="#080F1D" />
+    <SolidColorBrush x:Key="SettingsSurface" Color="#0C192C" />
+    <SolidColorBrush x:Key="SettingsInput" Color="#0A1424" />
+    <SolidColorBrush x:Key="SettingsBorder" Color="#203B55" />
+    <SolidColorBrush x:Key="SettingsText" Color="#E4F3FF" />
+    <SolidColorBrush x:Key="SettingsMuted" Color="#90ADC5" />
+    <SolidColorBrush x:Key="SettingsAccent" Color="#36D9F5" />
+    <SolidColorBrush x:Key="SettingsHover" Color="#17354C" />
+    <SolidColorBrush x:Key="SettingsPressed" Color="#22516A" />
+    <SolidColorBrush x:Key="SettingsPrimaryText" Color="#042331" />
+    <SolidColorBrush x:Key="SettingsPrimaryHover" Color="#83ECFF" />
+    <SolidColorBrush x:Key="SettingsPrimaryPressed" Color="#20B8D4" />
+    <SolidColorBrush x:Key="SettingsSelection" Color="#24778E" />
+    <SolidColorBrush x:Key="SettingsCheckboxBorder" Color="#35536F" />
+    <SolidColorBrush x:Key="SettingsRowHover" Color="#112D43" />
+    <SolidColorBrush x:Key="SettingsRowSelected" Color="#12465A" />
+    <SolidColorBrush x:Key="SettingsThumbBorder" Color="#9CF1FF" />
+    <SolidColorBrush x:Key="SettingsThumbHover" Color="#B2F4FF" />
+    <SolidColorBrush x:Key="SettingsSliderFill" Color="#248EA9" />
+    <SolidColorBrush x:Key="SettingsScrollThumb" Color="#285572" />
+    <SolidColorBrush x:Key="ThemeError" Color="#FF8896" />
+    <SolidColorBrush x:Key="TickerText" Color="#F3F4F6" />
+    <SolidColorBrush x:Key="TickerMuted" Color="#8B95A5" />
+    <SolidColorBrush x:Key="TickerSecondary" Color="#A8B0BD" />
+    <SolidColorBrush x:Key="TickerBackground" Color="#171B22" />
+    <SolidColorBrush x:Key="TickerBorder" Color="#353B46" />
+    <SolidColorBrush x:Key="TickerSeparator" Color="#282E38" />
+    <SolidColorBrush x:Key="TickerHover" Color="#12384B" />
+    <SolidColorBrush x:Key="ThemePositive" Color="#54CBA2" />
+    <SolidColorBrush x:Key="ThemeNegative" Color="#F07883" />
+    <SolidColorBrush x:Key="ThemeWarning" Color="#F0B90B" />
+</ResourceDictionary>

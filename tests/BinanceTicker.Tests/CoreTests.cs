@@ -32,6 +32,27 @@ public sealed class CoreTests : IDisposable
         Assert.Equal(expected, PriceFormatter.Format(decimal.Parse(input, System.Globalization.CultureInfo.InvariantCulture)));
 
     [Fact]
+    public void ExistingSettingsWithoutThemeKeepDarkDefault()
+    {
+        Directory.CreateDirectory(directory);
+        var service = new SettingsService(Path.Combine(directory, "settings.json"));
+        File.WriteAllText(service.FilePath, "{\"ui\":{\"compactMode\":false}}");
+        Assert.Equal(ColorTheme.Dark, service.Load().Ui.Theme);
+        Assert.Null(service.LoadWarning);
+    }
+
+    [Fact]
+    public void LightThemeSurvivesSettingsRoundTrip()
+    {
+        Directory.CreateDirectory(directory);
+        var service = new SettingsService(Path.Combine(directory, "settings.json"));
+        File.WriteAllText(service.FilePath, "{\"ui\":{\"theme\":\"Light\"}}");
+        service.Save(service.Load());
+        using var json = System.Text.Json.JsonDocument.Parse(File.ReadAllText(service.FilePath));
+        Assert.Equal("Light", json.RootElement.GetProperty("ui").GetProperty("theme").GetString());
+    }
+
+    [Fact]
     public void SavesAndLoadsEverySetting()
     {
         var service = new SettingsService(Path.Combine(directory, "settings.json"));
@@ -56,6 +77,7 @@ public sealed class CoreTests : IDisposable
     [InlineData("null")]
     [InlineData("{\"window\":null,\"symbols\":null}")]
     [InlineData("{\"mode\":\"Unknown\"}")]
+    [InlineData("{\"ui\":{\"theme\":\"Unknown\"}}")]
     public void BacksUpCorruptSettingsAndRestoresDefaults(string json)
     {
         Directory.CreateDirectory(directory);

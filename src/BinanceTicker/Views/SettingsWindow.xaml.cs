@@ -32,9 +32,14 @@ public partial class SettingsWindow : Window
     protected override void OnSourceInitialized(EventArgs e)
     {
         base.OnSourceInitialized(e);
+        RefreshTheme();
+    }
+    public void RefreshTheme()
+    {
         if (!OperatingSystem.IsWindowsVersionAtLeast(10, 0, 22000)) return;
         var handle = new WindowInteropHelper(this).Handle;
-        var darkMode = 1;
+        if (handle == IntPtr.Zero) return;
+        var darkMode = ((SolidColorBrush)FindResource("SettingsBackground")).Color.R < 128 ? 1 : 0;
         _ = DwmSetWindowAttribute(handle, 20, ref darkMode, sizeof(int));
         SetColor(34, "SettingsBorder");
         SetColor(35, "SettingsBackground");

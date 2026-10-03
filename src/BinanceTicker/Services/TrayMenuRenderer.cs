@@ -5,11 +5,17 @@ namespace BinanceTicker.Services;
 
 internal sealed class TrayMenuRenderer : Forms.ToolStripProfessionalRenderer
 {
-    internal static readonly Drawing.Color Background = Drawing.Color.FromArgb(8, 15, 29);
-    internal static readonly Drawing.Color Text = Drawing.Color.FromArgb(228, 243, 255);
-    private static readonly Drawing.Color Accent = Drawing.Color.FromArgb(54, 217, 245);
-    private static readonly Drawing.Color Border = Drawing.Color.FromArgb(32, 59, 85);
-    private static readonly Drawing.Color Hover = Drawing.Color.FromArgb(18, 56, 75);
+    internal static Drawing.Color Background => Color("SettingsBackground");
+    internal static Drawing.Color Text => Color("SettingsText");
+    private static Drawing.Color Accent => Color("SettingsAccent");
+    private static Drawing.Color Border => Color("SettingsBorder");
+    private static Drawing.Color Hover => Color("TickerHover");
+
+    private static Drawing.Color Color(string key)
+    {
+        var brush = (System.Windows.Media.SolidColorBrush)System.Windows.Application.Current.FindResource(key);
+        return Drawing.Color.FromArgb(brush.Color.A, brush.Color.R, brush.Color.G, brush.Color.B);
+    }
 
     public TrayMenuRenderer() : base(new MenuColors()) => RoundedEdges = false;
 
@@ -31,7 +37,7 @@ internal sealed class TrayMenuRenderer : Forms.ToolStripProfessionalRenderer
 
     protected override void OnRenderItemText(Forms.ToolStripItemTextRenderEventArgs e)
     {
-        e.TextColor = e.Item.Enabled ? Text : Drawing.Color.FromArgb(107, 139, 163);
+        e.TextColor = e.Item.Enabled ? Text : Color("SettingsMuted");
         base.OnRenderItemText(e);
     }
 

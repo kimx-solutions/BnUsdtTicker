@@ -37,6 +37,12 @@ public sealed class TrayIconService : IDisposable
         tray.MouseClick += (_, e) => { if (e.Button == Forms.MouseButtons.Left) Dispatch(show); };
     }
     public void SetMode(DisplayMode mode) { fix.Checked = mode == DisplayMode.Fix; floating.Checked = mode == DisplayMode.Float; }
+    public void RefreshTheme()
+    {
+        menu.BackColor = TrayMenuRenderer.Background;
+        menu.ForeColor = TrayMenuRenderer.Text;
+        menu.Invalidate(true);
+    }
     public void ShowWarning(string message) => tray.ShowBalloonTip(6000, "Binance Ticker", message, Forms.ToolTipIcon.Warning);
     private static Drawing.Icon CreateIcon()
     {
