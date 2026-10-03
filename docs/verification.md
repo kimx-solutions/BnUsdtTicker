@@ -2,6 +2,11 @@
 
 ## Issue #3 — Price alerts
 
+- Follow-up: tray menu text is vertically centered against each full padded row.
+  Raster checks verify Chinese/English text placement in dark/light themes and
+  highlighted menus; the original offset failed the test before the fix. Full suite
+  remains 83/83, and the self-contained executable was republished.
+
 - Branch: `codex/issue-3-price-alerts`, based on `8f0456b`.
 - Release build: zero warnings/errors. Full Release suite: 83 passed, zero failed/skipped.
 - Windows x64 self-contained publish: `artifacts/issue-3-publish/BinanceTicker.exe`.

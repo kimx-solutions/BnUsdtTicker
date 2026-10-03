@@ -38,6 +38,10 @@ internal sealed class TrayMenuRenderer : Forms.ToolStripProfessionalRenderer
     protected override void OnRenderItemText(Forms.ToolStripItemTextRenderEventArgs e)
     {
         e.TextColor = e.Item.Enabled ? Text : Color("SettingsMuted");
+        // Menu layout retains the unpadded text bounds when vertical padding enlarges a row.
+        // Keep horizontal placement, but center against the complete item height.
+        e.TextRectangle = new Drawing.Rectangle(e.TextRectangle.X, 0, e.TextRectangle.Width, e.Item.Height);
+        e.TextFormat = (e.TextFormat & ~Forms.TextFormatFlags.Bottom) | Forms.TextFormatFlags.VerticalCenter;
         base.OnRenderItemText(e);
     }
 

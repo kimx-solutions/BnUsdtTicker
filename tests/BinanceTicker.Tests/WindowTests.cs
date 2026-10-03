@@ -316,7 +316,6 @@ public sealed class WindowTests
     private static void RenderTrayMenu(TrayIconService service, string filename, int selectedIndex = -1)
     {
         var directory = Environment.GetEnvironmentVariable("TICKER_TEST_ARTIFACTS");
-        if (directory is null) return;
         var field = typeof(TrayIconService).GetField("menu", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
         var menu = (System.Windows.Forms.ContextMenuStrip)field.GetValue(service)!;
         menu.CreateControl();
@@ -325,8 +324,30 @@ public sealed class WindowTests
         if (selectedIndex >= 0) menu.Items[selectedIndex].Select();
         using var bitmap = new System.Drawing.Bitmap(menu.Width, menu.Height);
         menu.DrawToBitmap(bitmap, new System.Drawing.Rectangle(System.Drawing.Point.Empty, menu.Size));
-        Directory.CreateDirectory(directory);
-        bitmap.Save(Path.Combine(directory, filename), System.Drawing.Imaging.ImageFormat.Png);
+        foreach (var item in menu.Items.OfType<System.Windows.Forms.ToolStripMenuItem>())
+        {
+            var top = int.MaxValue;
+            var bottom = -1;
+            var bounds = item.Bounds;
+            for (var y = Math.Max(0, bounds.Top); y < Math.Min(bitmap.Height, bounds.Bottom); y++)
+                for (var x = bounds.Left + 40; x < Math.Min(bitmap.Width, bounds.Right - 4); x++)
+                {
+                    var pixel = bitmap.GetPixel(x, y);
+                    if (Math.Abs(pixel.R - menu.ForeColor.R) > 24 || Math.Abs(pixel.G - menu.ForeColor.G) > 24 ||
+                        Math.Abs(pixel.B - menu.ForeColor.B) > 24) continue;
+                    top = Math.Min(top, y); bottom = Math.Max(bottom, y);
+                }
+            Assert.True(bottom >= top, $"Rendered text missing for {item.Text}");
+            var textCenter = (top + bottom) / 2.0;
+            var rowCenter = bounds.Top + (bounds.Height - 1) / 2.0;
+            Assert.True(Math.Abs(textCenter - rowCenter) <= 3,
+                $"{item.Text} must be vertically centered: text={top}..{bottom}, row={bounds.Top}..{bounds.Bottom - 1}");
+        }
+        if (directory is not null)
+        {
+            Directory.CreateDirectory(directory);
+            bitmap.Save(Path.Combine(directory, filename), System.Drawing.Imaging.ImageFormat.Png);
+        }
     }
 
     private sealed class EventWindow : Window
