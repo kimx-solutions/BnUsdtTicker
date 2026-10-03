@@ -32,7 +32,7 @@ public sealed class TickerWindowManager : IDisposable
     public void Show() { window.Show(); EnsureVisible(); window.Activate(); }
     public void Hide() => window.Hide();
     public void Toggle() { if (window.IsVisible) Hide(); else Show(); }
-    public void SetMode(DisplayMode mode) { settings.Mode = mode; window.Topmost = mode == DisplayMode.Fix; window.ShowInTaskbar = false; }
+    public void SetMode(DisplayMode mode) { settings.Mode = mode; window.Topmost = mode == DisplayMode.Fix; window.ShowInTaskbar = true; }
     public void SavePosition() { settings.Window.Left = window.Left; settings.Window.Top = window.Top; save(); }
     public void CloseForExit() { exiting = true; window.Close(); }
     private void OnClosing(object? sender, CancelEventArgs e) { if (exiting) return; e.Cancel = true; SavePosition(); Hide(); }

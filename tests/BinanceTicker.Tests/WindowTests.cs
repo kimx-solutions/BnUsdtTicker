@@ -1,4 +1,6 @@
 using System.Windows;
+using System.Windows.Automation.Peers;
+using System.Windows.Automation.Provider;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -30,7 +32,7 @@ public sealed class WindowTests
                 {
                     window.Show();
                     Assert.True(window.Topmost);
-                    Assert.False(window.ShowInTaskbar);
+                    Assert.True(window.ShowInTaskbar);
                     window.DeactivateForTest();
                     Assert.True(window.IsVisible);
                     window.Close();
@@ -38,6 +40,7 @@ public sealed class WindowTests
                     window.Show();
                     manager.SetMode(DisplayMode.Float);
                     Assert.False(window.Topmost);
+                    Assert.True(window.ShowInTaskbar);
                     window.DeactivateForTest();
                     Assert.False(window.IsVisible);
                     manager.SetMode(DisplayMode.Fix);
@@ -59,7 +62,17 @@ public sealed class WindowTests
                 ticker.SetStatus(ConnectionStatus.Connected);
                 var tickerWindow = new TickerWindow { DataContext = ticker, ShowActivated = false };
                 Render(tickerWindow, "ticker-preview.png");
+                Assert.NotNull(tickerWindow.Icon);
                 Assert.True(tickerWindow.ActualHeight > 100);
+                var priceHeader = Descendants<Button>(tickerWindow).Single(b => ReferenceEquals(b.Command, ticker.SortPriceCommand));
+                var invokeSort = (IInvokeProvider)new ButtonAutomationPeer(priceHeader).GetPattern(PatternInterface.Invoke);
+                invokeSort.Invoke();
+                application.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+                Assert.Equal(new[] { "ENA", "ETH", "BTC" }, ticker.Prices.Select(p => p.Asset));
+                Render(tickerWindow, "ticker-sort-preview.png");
+                invokeSort.Invoke();
+                application.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+                Assert.Equal(new[] { "BTC", "ETH", "ENA" }, ticker.Prices.Select(p => p.Asset));
                 ticker.Configure(new() { Symbols = Enumerable.Range(1, 25).Select(i => new SymbolSetting { Symbol = $"TEST{i}USDT", Order = i }).ToList() });
                 tickerWindow.MaxHeight = 300; tickerWindow.UpdateLayout();
                 var priceScroll = Descendants<ScrollViewer>(tickerWindow).Single();
@@ -72,6 +85,7 @@ public sealed class WindowTests
                 Assert.InRange(settingsWindow.Top + settingsWindow.Height, SystemParameters.WorkArea.Top, SystemParameters.WorkArea.Bottom);
                 Assert.InRange(settingsWindow.Left + settingsWindow.Width, SystemParameters.WorkArea.Left, SystemParameters.WorkArea.Right);
                 Render(settingsWindow, "settings-preview.png");
+                Assert.NotNull(settingsWindow.Icon);
                 Assert.Equal(settingsVm, settingsWindow.DataContext);
                 var checkbox = Descendants<CheckBox>(settingsWindow).First(c => c.DataContext is SymbolSetting s && s.Symbol == "ETHUSDT");
                 checkbox.RaiseEvent(new MouseButtonEventArgs(Mouse.PrimaryDevice, 0, MouseButton.Left)
@@ -80,13 +94,31 @@ public sealed class WindowTests
                 Assert.NotNull(symbolList.SelectedItem);
                 application.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.DataBind);
                 Assert.Equal("ETHUSDT", settingsVm.SelectedSymbol?.Symbol);
+                var modeSelector = Descendants<ComboBox>(settingsWindow).Single();
+                modeSelector.IsDropDownOpen = true;
+                settingsWindow.UpdateLayout();
+                modeSelector.SetCurrentValue(ComboBox.SelectedItemProperty, DisplayMode.Float);
+                modeSelector.IsDropDownOpen = false;
+                var opacitySlider = Descendants<Slider>(settingsWindow).Single();
+                opacitySlider.SetCurrentValue(Slider.ValueProperty, 0.73);
+                application.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.DataBind);
+                var editedSettings = settingsVm.CreateSettings();
+                Assert.Equal(DisplayMode.Float, editedSettings.Mode);
+                Assert.Equal(0.73, editedSettings.Window.Opacity);
                 settingsWindow.Height = 430; settingsWindow.UpdateLayout();
                 Assert.True(settingsWindow.ActualHeight <= 430, "Settings must fit a small/high-DPI work area");
                 var saveButton = Descendants<Button>(settingsWindow).Single(b => Equals(b.Content, "儲存"));
                 Assert.InRange(saveButton.TranslatePoint(new Point(0, saveButton.ActualHeight), settingsWindow).Y, 1, settingsWindow.ActualHeight);
+                Render(settingsWindow, "settings-small-preview.png");
+                settingsWindow.Width = 400; settingsWindow.UpdateLayout();
+                Render(settingsWindow, "settings-narrow-preview.png");
                 settingsWindow.Close();
                 using var tray = new TrayIconService(application.Dispatcher, () => { }, () => { }, _ => { }, () => { });
+                tray.SetMode(DisplayMode.Fix);
+                RenderTrayMenu(tray, "tray-menu-preview.png");
                 tray.SetMode(DisplayMode.Float);
+                RenderTrayMenu(tray, "tray-menu-float-preview.png");
+                RenderTrayMenu(tray, "tray-menu-hover-preview.png", 0);
                 application.Shutdown();
             }
             catch (Exception ex) { failure = ex; }
@@ -100,7 +132,10 @@ public sealed class WindowTests
     private static void Render(Window window, string filename)
     {
         window.Show(); window.UpdateLayout();
-        var bitmap = new RenderTargetBitmap((int)window.ActualWidth, (int)window.ActualHeight, 96, 96, PixelFormats.Pbgra32);
+        var content = (FrameworkElement)window.Content;
+        var width = content.ActualWidth + content.Margin.Left + content.Margin.Right;
+        var height = content.ActualHeight + content.Margin.Top + content.Margin.Bottom;
+        var bitmap = new RenderTargetBitmap((int)Math.Ceiling(width), (int)Math.Ceiling(height), 96, 96, PixelFormats.Pbgra32);
         bitmap.Render(window);
         var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
         var directory = Environment.GetEnvironmentVariable("TICKER_TEST_ARTIFACTS");
@@ -109,6 +144,22 @@ public sealed class WindowTests
             Directory.CreateDirectory(directory);
             using var file = File.Create(Path.Combine(directory, filename)); encoder.Save(file);
         }
+    }
+
+    private static void RenderTrayMenu(TrayIconService service, string filename, int selectedIndex = -1)
+    {
+        var directory = Environment.GetEnvironmentVariable("TICKER_TEST_ARTIFACTS");
+        if (directory is null) return;
+        var field = typeof(TrayIconService).GetField("menu", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
+        var menu = (System.Windows.Forms.ContextMenuStrip)field.GetValue(service)!;
+        menu.CreateControl();
+        menu.Size = menu.GetPreferredSize(System.Drawing.Size.Empty);
+        menu.PerformLayout();
+        if (selectedIndex >= 0) menu.Items[selectedIndex].Select();
+        using var bitmap = new System.Drawing.Bitmap(menu.Width, menu.Height);
+        menu.DrawToBitmap(bitmap, new System.Drawing.Rectangle(System.Drawing.Point.Empty, menu.Size));
+        Directory.CreateDirectory(directory);
+        bitmap.Save(Path.Combine(directory, filename), System.Drawing.Imaging.ImageFormat.Png);
     }
 
     private sealed class EventWindow : Window

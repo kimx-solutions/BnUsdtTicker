@@ -2,11 +2,30 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:models="clr-namespace:BinanceTicker.Core.Models;assembly=BinanceTicker.Core"
+        xmlns:vm="clr-namespace:BinanceTicker.Core.ViewModels;assembly=BinanceTicker.Core"
         Title="Binance USDT Ticker" Width="390" SizeToContent="Height" MaxHeight="640"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
-        ResizeMode="NoResize" ShowInTaskbar="False" FontFamily="Segoe UI, Microsoft JhengHei"
+        ResizeMode="NoResize" ShowInTaskbar="True" Icon="/BinanceTicker;component/Assets/app.ico" FontFamily="Segoe UI, Microsoft JhengHei"
         Foreground="#F3F4F6" WindowStartupLocation="Manual">
     <Window.Resources>
+        <Style x:Key="SortHeader" TargetType="Button">
+            <Setter Property="AutomationProperties.HelpText" Value="{Binding SortDescription}" />
+            <Setter Property="Foreground" Value="#8B95A5" />
+            <Setter Property="FontSize" Value="10" />
+            <Setter Property="Padding" Value="0,4" />
+            <Setter Property="Margin" Value="0" />
+            <Setter Property="MinHeight" Value="24" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
+                <Border x:Name="Frame" Background="Transparent" CornerRadius="3">
+                    <ContentPresenter Margin="{TemplateBinding Padding}" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="Center" />
+                </Border>
+                <ControlTemplate.Triggers>
+                    <Trigger Property="IsMouseOver" Value="True"><Setter Property="Foreground" Value="#36D9F5" /><Setter TargetName="Frame" Property="Background" Value="#12384B" /></Trigger>
+                    <Trigger Property="IsKeyboardFocused" Value="True"><Setter Property="Foreground" Value="#36D9F5" /><Setter TargetName="Frame" Property="Background" Value="#12384B" /></Trigger>
+                </ControlTemplate.Triggers>
+            </ControlTemplate></Setter.Value></Setter>
+        </Style>
         <Style x:Key="HeaderButton" TargetType="Button">
             <Setter Property="Background" Value="Transparent" /><Setter Property="Foreground" Value="#A8B0BD" />
             <Setter Property="BorderThickness" Value="0" /><Setter Property="Padding" Value="6,4" /><Setter Property="Cursor" Value="Hand" />
@@ -78,9 +97,21 @@
             <DockPanel>
                 <Grid DockPanel.Dock="Top" Margin="0,0,0,2">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="80" /><ColumnDefinition /><ColumnDefinition Width="85" /></Grid.ColumnDefinitions>
-                    <TextBlock Text="幣種" FontSize="10" Foreground="#8B95A5" />
-                    <TextBlock Grid.Column="1" Text="價格 · USDT" FontSize="10" Foreground="#8B95A5" HorizontalAlignment="Right" />
-                    <TextBlock Grid.Column="2" Text="24h" FontSize="10" Foreground="#8B95A5" HorizontalAlignment="Right" Visibility="{Binding ShowChangePercent, Converter={StaticResource BoolVisibility}}" />
+                    <Button Content="{Binding SymbolSortHeader}" Command="{Binding SortSymbolCommand}" HorizontalContentAlignment="Left" ToolTip="依幣種排序；再次點擊切換升冪／降冪" AutomationProperties.Name="幣種排序">
+                        <Button.Style><Style TargetType="Button" BasedOn="{StaticResource SortHeader}"><Style.Triggers>
+                            <DataTrigger Binding="{Binding SortColumn}" Value="{x:Static vm:TickerSortColumn.Symbol}"><Setter Property="Foreground" Value="#36D9F5" /></DataTrigger>
+                        </Style.Triggers></Style></Button.Style>
+                    </Button>
+                    <Button Grid.Column="1" Content="{Binding PriceSortHeader}" Command="{Binding SortPriceCommand}" HorizontalContentAlignment="Right" ToolTip="依價格排序；再次點擊切換升冪／降冪" AutomationProperties.Name="價格排序">
+                        <Button.Style><Style TargetType="Button" BasedOn="{StaticResource SortHeader}"><Style.Triggers>
+                            <DataTrigger Binding="{Binding SortColumn}" Value="{x:Static vm:TickerSortColumn.Price}"><Setter Property="Foreground" Value="#36D9F5" /></DataTrigger>
+                        </Style.Triggers></Style></Button.Style>
+                    </Button>
+                    <Button Grid.Column="2" Content="{Binding ChangeSortHeader}" Command="{Binding SortChangeCommand}" HorizontalContentAlignment="Right" ToolTip="依 24 小時漲跌幅排序；再次點擊切換升冪／降冪" AutomationProperties.Name="24 小時漲跌幅排序" Visibility="{Binding ShowChangePercent, Converter={StaticResource BoolVisibility}}">
+                        <Button.Style><Style TargetType="Button" BasedOn="{StaticResource SortHeader}"><Style.Triggers>
+                            <DataTrigger Binding="{Binding SortColumn}" Value="{x:Static vm:TickerSortColumn.ChangePercent}"><Setter Property="Foreground" Value="#36D9F5" /></DataTrigger>
+                        </Style.Triggers></Style></Button.Style>
+                    </Button>
                 </Grid>
                 <TextBlock DockPanel.Dock="Top" Text="尚未啟用幣種，請開啟設定新增。" Margin="0,20" Foreground="#A8B0BD" Visibility="{Binding IsEmpty, Converter={StaticResource BoolVisibility}}" />
                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" MaxHeight="480">

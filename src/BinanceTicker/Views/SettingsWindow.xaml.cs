@@ -1,6 +1,9 @@
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Interop;
+using System.Windows.Media;
 using BinanceTicker.Core.Models;
 using BinanceTicker.Core.ViewModels;
 
@@ -26,6 +29,26 @@ public partial class SettingsWindow : Window
         Left = area.Left + (area.Width - Width) / 2;
         Top = area.Top + (area.Height - Height) / 2;
     }
+    protected override void OnSourceInitialized(EventArgs e)
+    {
+        base.OnSourceInitialized(e);
+        if (!OperatingSystem.IsWindowsVersionAtLeast(10, 0, 22000)) return;
+        var handle = new WindowInteropHelper(this).Handle;
+        var darkMode = 1;
+        _ = DwmSetWindowAttribute(handle, 20, ref darkMode, sizeof(int));
+        SetColor(34, "SettingsBorder");
+        SetColor(35, "SettingsBackground");
+        SetColor(36, "SettingsText");
+        void SetColor(int attribute, string resourceKey)
+        {
+            var color = ((SolidColorBrush)FindResource(resourceKey)).Color;
+            var colorRef = color.R | (color.G << 8) | (color.B << 16);
+            _ = DwmSetWindowAttribute(handle, attribute, ref colorRef, sizeof(int));
+        }
+    }
+    [DllImport("dwmapi.dll")]
+    private static extern int DwmSetWindowAttribute(IntPtr handle, int attribute, ref int value, int size);
+
     private void SelectSymbolRow(object sender, MouseButtonEventArgs e)
     {
         if (e.ChangedButton != MouseButton.Left) return;

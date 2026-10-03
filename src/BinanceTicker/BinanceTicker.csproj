@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\BinanceTicker.Core\BinanceTicker.Core.csproj" />
+    <Resource Include="Assets\app.ico" />
   </ItemGroup>
 
   <PropertyGroup>
@@ -12,6 +13,7 @@
     <UseWPF>true</UseWPF>
     <UseWindowsForms>true</UseWindowsForms>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
   </PropertyGroup>
 
 </Project>

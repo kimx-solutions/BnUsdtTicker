@@ -6,6 +6,80 @@ namespace BinanceTicker.Tests;
 
 public sealed class ViewModelTests
 {
+    [Theory]
+    [InlineData(TickerSortColumn.Symbol, "BTC,ENA,ETH", "ETH,ENA,BTC")]
+    [InlineData(TickerSortColumn.Price, "ETH,BTC,ENA", "ENA,BTC,ETH")]
+    [InlineData(TickerSortColumn.ChangePercent, "ENA,BTC,ETH", "ETH,BTC,ENA")]
+    public void TickerSortsColumnsInBothDirectionsUsingNumericValues(TickerSortColumn column, string ascending, string descending)
+    {
+        var vm = CreateSortingTicker();
+        vm.SortBy(column);
+        Assert.Equal(ascending, string.Join(",", vm.Prices.Select(p => p.Asset)));
+        vm.SortBy(column);
+        Assert.Equal(descending, string.Join(",", vm.Prices.Select(p => p.Asset)));
+    }
+
+    [Fact]
+    public void SwitchingSortColumnsStartsAscending()
+    {
+        var vm = CreateSortingTicker();
+        vm.SortBy(TickerSortColumn.Price);
+        vm.SortBy(TickerSortColumn.Price);
+        vm.SortBy(TickerSortColumn.ChangePercent);
+        Assert.Equal(new[] { "ENA", "BTC", "ETH" }, vm.Prices.Select(p => p.Asset));
+    }
+
+    [Fact]
+    public void LiveSortKeepsMissingQuotesLastAndPreservesRows()
+    {
+        var vm = CreateSortingTicker(includeWaiting: true);
+        var ena = vm.Prices.Single(p => p.Asset == "ENA");
+        vm.SortBy(TickerSortColumn.Price);
+        Assert.Equal(new[] { "ETH", "BTC", "ENA", "NEAR" }, vm.Prices.Select(p => p.Asset));
+        vm.SortBy(TickerSortColumn.Price);
+        Assert.Equal(new[] { "ENA", "BTC", "ETH", "NEAR" }, vm.Prices.Select(p => p.Asset));
+        vm.Update(new("NEARUSDT", 20m, 3m, DateTime.UnixEpoch.AddSeconds(1)));
+        Assert.Equal(new[] { "ENA", "NEAR", "BTC", "ETH" }, vm.Prices.Select(p => p.Asset));
+        vm.Update(new("ENAUSDT", 1m, -10m, DateTime.UnixEpoch.AddSeconds(1)));
+        Assert.Equal(new[] { "NEAR", "BTC", "ETH", "ENA" }, vm.Prices.Select(p => p.Asset));
+        Assert.Same(ena, vm.Prices[^1]);
+        vm.Update(new("ENAUSDT", 9000m, -10m, DateTime.UnixEpoch));
+        Assert.Equal(new[] { "NEAR", "BTC", "ETH", "ENA" }, vm.Prices.Select(p => p.Asset));
+    }
+
+    [Fact]
+    public void EqualValuesUseStableSymbolOrderAndActiveSortSurvivesSettingsChanges()
+    {
+        var vm = CreateSortingTicker();
+        vm.Update(new("ETHUSDT", 10m, 10m, DateTime.UnixEpoch.AddSeconds(1)));
+        vm.SortBy(TickerSortColumn.Price);
+        Assert.Equal(new[] { "BTC", "ETH", "ENA" }, vm.Prices.Select(p => p.Asset));
+        vm.SortBy(TickerSortColumn.Price);
+        Assert.Equal(new[] { "ENA", "BTC", "ETH" }, vm.Prices.Select(p => p.Asset));
+        var btc = vm.Prices.Single(p => p.Asset == "BTC");
+        vm.Configure(new AppSettings { Symbols = [
+            new() { Symbol = "ETHUSDT", Order = 1 },
+            new() { Symbol = "BTCUSDT", Order = 2 },
+            new() { Symbol = "BNBUSDT", Order = 3 }] });
+        Assert.Equal(new[] { "BTC", "ETH", "BNB" }, vm.Prices.Select(p => p.Asset));
+        Assert.Same(btc, vm.Prices[0]);
+    }
+
+    private static TickerViewModel CreateSortingTicker(bool includeWaiting = false)
+    {
+        var settings = new AppSettings { Symbols = [
+            new() { Symbol = "ETHUSDT", Order = 1 },
+            new() { Symbol = "ENAUSDT", Order = 2 },
+            new() { Symbol = "BTCUSDT", Order = 3 }] };
+        if (includeWaiting) settings.Symbols.Insert(0, new() { Symbol = "NEARUSDT", Order = 0 });
+        var vm = new TickerViewModel();
+        vm.Configure(settings);
+        vm.Update(new("BTCUSDT", 10m, -2m, DateTime.UnixEpoch));
+        vm.Update(new("ETHUSDT", 2m, 10m, DateTime.UnixEpoch));
+        vm.Update(new("ENAUSDT", 1000m, -10m, DateTime.UnixEpoch));
+        return vm;
+    }
+
     [Fact]
     public void TickerShowsEnabledRowsInOrderAndNotifiesOnPriceChanges()
     {
