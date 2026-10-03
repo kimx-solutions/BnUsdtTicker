@@ -21,7 +21,8 @@ public sealed class AppSettings
     {
         Mode = Mode, ShowOnStartup = ShowOnStartup,
         Window = new() { Left = Window.Left, Top = Window.Top, Opacity = Window.Opacity },
-        Ui = new() { CompactMode = Ui.CompactMode, ShowChangePercent = Ui.ShowChangePercent, Theme = Ui.Theme },
+        Ui = new() { CompactMode = Ui.CompactMode, ShowChangePercent = Ui.ShowChangePercent, Theme = Ui.Theme,
+            ShowSparkline = Ui.ShowSparkline, SparklineRange = Ui.SparklineRange },
         Symbols = Symbols.Select(s => s.Copy()).ToList()
     };
 }
@@ -35,6 +36,8 @@ public sealed class WindowSettings
 
 public sealed class UiSettings
 {
+    public bool ShowSparkline { get; set; } = true;
+    public string SparklineRange { get; set; } = "1h";
     public ColorTheme Theme { get; set; } = ColorTheme.Dark;
     public bool ShowChangePercent { get; set; } = true;
     public bool CompactMode { get; set; } = true;

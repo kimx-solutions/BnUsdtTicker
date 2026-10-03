@@ -14,6 +14,10 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
     private string error = "";
     private bool isBusy;
     private SymbolSetting? selectedSymbol;
+    private bool showSparkline;
+    private string sparklineRange = "1h";
+    private bool showSparklineEdited;
+    private bool sparklineRangeEdited;
     public ObservableCollection<SymbolSetting> Symbols { get; }
     public string NewSymbol { get => newSymbol; set => Set(ref newSymbol, value); }
     public string Error { get => error; set => Set(ref error, value); }
@@ -33,6 +37,17 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
     public bool ShowOnStartup { get; set; }
     public bool ShowChangePercent { get; set; }
     public bool CompactMode { get; set; }
+    public bool ShowSparkline
+    {
+        get => showSparkline;
+        set { if (Set(ref showSparkline, value)) showSparklineEdited = true; }
+    }
+    public string SparklineRange
+    {
+        get => sparklineRange;
+        set { if (Set(ref sparklineRange, value)) sparklineRangeEdited = true; }
+    }
+    public IReadOnlyList<string> SparklineRanges { get; } = ["1h", "24h"];
     public double Opacity { get; set; }
     public AsyncCommand AddCommand { get; }
     public RelayCommand RemoveCommand { get; }
@@ -47,6 +62,7 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
         Mode = original.Mode; ShowOnStartup = original.ShowOnStartup;
         ShowChangePercent = original.Ui.ShowChangePercent; CompactMode = original.Ui.CompactMode;
         Opacity = original.Window.Opacity;
+        showSparkline = original.Ui.ShowSparkline; sparklineRange = original.Ui.SparklineRange;
         AddCommand = new(AddAsync, () => !IsBusy);
         RemoveCommand = new(Remove, () => SelectedSymbol is not null);
         MoveUpCommand = new(() => Move(-1), () => SelectedSymbol is not null && Symbols.IndexOf(SelectedSymbol) > 0);
@@ -83,11 +99,18 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
         settings.Mode = Mode; settings.ShowOnStartup = ShowOnStartup;
         settings.Window.Opacity = Opacity;
         settings.Ui.ShowChangePercent = ShowChangePercent; settings.Ui.CompactMode = CompactMode;
+        settings.Ui.ShowSparkline = ShowSparkline; settings.Ui.SparklineRange = SparklineRange;
         settings.Symbols = Symbols.Select((s, i) =>
         {
             var copy = s.Copy(); copy.Order = i + 1; return copy;
         }).ToList();
         return settings;
+    }
+
+    public void PreserveUneditedSparklinePreferences(AppSettings edited, AppSettings current)
+    {
+        if (!showSparklineEdited) edited.Ui.ShowSparkline = current.Ui.ShowSparkline;
+        if (!sparklineRangeEdited) edited.Ui.SparklineRange = current.Ui.SparklineRange;
     }
 
     private void Remove()

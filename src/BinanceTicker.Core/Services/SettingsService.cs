@@ -53,6 +53,7 @@ public sealed class SettingsService
             settings.Symbols.Any(s => s is null) || !Enum.IsDefined(settings.Mode) || !Enum.IsDefined(settings.Ui.Theme))
             throw new JsonException("Invalid settings structure.");
         settings.Window.Left = double.IsFinite(settings.Window.Left) ? settings.Window.Left : 100;
+        if (settings.Ui.SparklineRange is not ("1h" or "24h")) settings.Ui.SparklineRange = "1h";
         settings.Window.Top = double.IsFinite(settings.Window.Top) ? settings.Window.Top : 100;
         settings.Window.Opacity = double.IsFinite(settings.Window.Opacity) ? Math.Clamp(settings.Window.Opacity, 0.2, 1) : 0.95;
         var symbols = new HashSet<string>(StringComparer.Ordinal);
