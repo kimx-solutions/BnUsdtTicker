@@ -23,8 +23,10 @@ public sealed class WindowTests
         {
             try
             {
-                var application = new App();
-                application.InitializeComponent();
+                var application = new TestApp { ShutdownMode = ShutdownMode.OnExplicitShutdown };
+                application.Resources.MergedDictionaries.Add(new ResourceDictionary
+                { Source = new Uri("pack://application:,,,/BinanceTicker;component/Themes/Dark.xaml") });
+                application.Resources.Add("BoolVisibility", new BooleanToVisibilityConverter());
                 var window = new EventWindow { Width = 390, Height = 220, ShowActivated = false };
                 var settings = new AppSettings();
                 var saves = 0;
@@ -81,6 +83,41 @@ public sealed class WindowTests
                 Render(settingsWindow, "settings-preview.png");
                 Assert.NotNull(settingsWindow.Icon);
                 Assert.Equal(settingsVm, settingsWindow.DataContext);
+                var upperInput = settingsWindow.FindName("UpperPriceInput") as TextBox;
+                var lowerInput = settingsWindow.FindName("LowerPriceInput") as TextBox;
+                Assert.NotNull(upperInput);
+                Assert.NotNull(lowerInput);
+                upperInput.SetCurrentValue(TextBox.TextProperty, "invalid");
+                var saveAlertButton = Descendants<Button>(settingsWindow).Single(b => Equals(b.Content, "儲存"));
+                ((IInvokeProvider)new ButtonAutomationPeer(saveAlertButton).GetPattern(PatternInterface.Invoke)).Invoke();
+                application.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+                Assert.True(settingsWindow.IsVisible);
+                Assert.NotEmpty(settingsVm.Error);
+                var errorLabel = settingsWindow.FindName("SettingsErrorText") as TextBlock;
+                Assert.NotNull(errorLabel);
+                Assert.True(errorLabel.IsVisible);
+                Assert.InRange(errorLabel.TranslatePoint(new Point(0, errorLabel.ActualHeight), settingsWindow).Y, 1, settingsWindow.ActualHeight);
+                settingsVm.Error = "";
+                upperInput.SetCurrentValue(TextBox.TextProperty, "85000.125");
+                lowerInput.SetCurrentValue(TextBox.TextProperty, "80000");
+                application.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.DataBind);
+                Assert.Equal(85000.125m, settingsVm.CreateSettings().Symbols[0].Alert.UpperPrice);
+                Assert.Equal(80000m, settingsVm.CreateSettings().Symbols[0].Alert.LowerPrice);
+                var resetUpper = Descendants<Button>(settingsWindow).Single(b => Equals(b.Content, "重設上限"));
+                ((IInvokeProvider)new ButtonAutomationPeer(resetUpper).GetPattern(PatternInterface.Invoke)).Invoke();
+                application.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+                Assert.Equal(new AlertResetRequest("BTCUSDT", AlertType.Upper), Assert.Single(settingsVm.GetAlertResets()));
+                Render(settingsWindow, "settings-alerts-preview.png");
+                var triggeredSettings = new AppSettings();
+                triggeredSettings.Symbols[0].Alert.UpperTriggered = true;
+                ticker.Configure(triggeredSettings);
+                application.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.DataBind);
+                Assert.True(ticker.Prices.Single(p => p.Symbol == "BTCUSDT").HasTriggeredAlert);
+                tickerWindow.UpdateLayout();
+                Assert.Contains(Descendants<TextBlock>(tickerWindow), t => t.Text == "▲ 提醒" && t.IsVisible);
+                Render(tickerWindow, "ticker-alerts-preview.png");
+                ticker.SetAlertState("BTCUSDT", new());
+                Assert.False(ticker.Prices.Single(p => p.Symbol == "BTCUSDT").HasTriggeredAlert);
                 var themeButton = tickerWindow.FindName("ThemeToggleButton") as Button;
                 Assert.NotNull(themeButton);
                 var theme = ColorTheme.Dark;
@@ -120,7 +157,7 @@ public sealed class WindowTests
                 Assert.True(priceScroll.ViewportHeight < priceScroll.ExtentHeight, "Long watchlists must scroll inside small work areas");
                 Assert.True(tickerWindow.ActualHeight <= 300);
                 tickerWindow.Close();
-                var symbolInput = Descendants<TextBox>(settingsWindow).Single();
+                var symbolInput = Descendants<TextBox>(settingsWindow).Single(t => t.DataContext is SettingsViewModel);
                 settingsWindow.Activate();
                 Assert.True(symbolInput.Focus());
                 TextCompositionManager.StartComposition(new TextComposition(InputManager.Current, symbolInput, "SOL"));
@@ -164,7 +201,8 @@ public sealed class WindowTests
                 tray.SetMode(DisplayMode.Float);
                 RenderTrayMenu(tray, "tray-menu-float-preview.png");
                 RenderTrayMenu(tray, "tray-menu-hover-preview.png", 0);
-                application.Shutdown();
+                VerifyRuntimePriceAlerts(application);
+                VerifyPendingPriceUpdateDrainsBeforeShutdown(application);
             }
             catch (Exception ex) { failure = ex; }
         });
@@ -172,6 +210,90 @@ public sealed class WindowTests
         thread.Start();
         Assert.True(thread.Join(TimeSpan.FromSeconds(20)), "WPF smoke test timed out");
         if (failure is not null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
+    }
+
+    private static void VerifyRuntimePriceAlerts(App application)
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "TickerRuntimeAlerts-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var settings = new AppSettings();
+            settings.Symbols[0].Alert.UpperPrice = 85000m;
+            var store = new SettingsService(Path.Combine(directory, "settings.json"));
+            store.Save(settings);
+            var history = new AlertHistoryService(Path.Combine(directory, "alerts-history.json"));
+            var sent = new List<string>();
+            var alerts = new PriceAlertService(settings, store, history, new NotificationService((_, message) => sent.Add(message)));
+            const System.Reflection.BindingFlags fields = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic;
+            typeof(App).GetField("settings", fields)!.SetValue(application, settings);
+            typeof(App).GetField("alerts", fields)!.SetValue(application, alerts);
+            var ticker = (TickerViewModel)typeof(App).GetField("ticker", fields)!.GetValue(application)!;
+            ticker.Configure(settings);
+            var update = typeof(App).GetMethod("UpdatePriceAsync", fields)!;
+            void Receive(TickerPrice price) => ((Task)update.Invoke(application, [price])!).GetAwaiter().GetResult();
+            var now = DateTime.UtcNow;
+            Receive(new("BTCUSDT", 85120.5m, 1m, now));
+            Receive(new("BTCUSDT", 86000m, 1m, now.AddSeconds(1)));
+            Assert.Single(sent);
+            Assert.Single(history.Load());
+            Assert.True(ticker.Prices[0].HasTriggeredAlert);
+            alerts.ResetAsync("BTCUSDT", AlertType.Upper).GetAwaiter().GetResult();
+            Receive(new("BTCUSDT", 90000m, 1m, now.AddSeconds(-1)));
+            Assert.Single(sent); // A stale reconnect quote must not re-trigger after reset.
+            Receive(new("BTCUSDT", 87000m, 1m, now.AddSeconds(2)));
+            Assert.Equal(2, sent.Count);
+            Assert.Equal(87000m, history.Load()[1].TriggeredPrice);
+        }
+        finally { if (Directory.Exists(directory)) Directory.Delete(directory, true); }
+    }
+
+    private static void VerifyPendingPriceUpdateDrainsBeforeShutdown(App application)
+    {
+        const System.Reflection.BindingFlags fields = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic;
+        var alerts = new PendingAlerts();
+        var tray = new TrayIconService(application.Dispatcher, () => { }, () => { }, _ => { }, () => { });
+        var nativeTray = (System.Windows.Forms.NotifyIcon)typeof(TrayIconService).GetField("tray", fields)!.GetValue(tray)!;
+        typeof(App).GetField("alerts", fields)!.SetValue(application, alerts);
+        typeof(App).GetField("tray", fields)!.SetValue(application, tray);
+        var queue = typeof(App).GetMethod("QueuePriceUpdate", fields)!;
+        var shutdown = typeof(App).GetMethod("ExitAsync", fields)!;
+        application.Dispatcher.Invoke(() => queue.Invoke(application, [new TickerPrice("BTCUSDT", 90000m, 0m, DateTime.UtcNow.AddMinutes(1))]));
+        Assert.True(alerts.Entered);
+        Task? exit = null;
+        application.Dispatcher.Invoke(() => exit = (Task)shutdown.Invoke(application, null)!);
+        Assert.NotNull(exit);
+        Assert.False(exit.IsCompleted);
+        Assert.True(nativeTray.Visible, "The notification icon must survive until pending alert work completes.");
+        var frame = new System.Windows.Threading.DispatcherFrame();
+        _ = exit.ContinueWith(_ => frame.Continue = false, CancellationToken.None,
+            TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+        alerts.Release();
+        if (!exit.IsCompleted)
+        {
+            var timeout = new System.Windows.Threading.DispatcherTimer(TimeSpan.FromSeconds(5),
+                System.Windows.Threading.DispatcherPriority.Send, (_, _) => frame.Continue = false, application.Dispatcher);
+            try { System.Windows.Threading.Dispatcher.PushFrame(frame); }
+            finally { timeout.Stop(); }
+        }
+        Assert.True(exit.IsCompletedSuccessfully);
+        Assert.False(nativeTray.Visible);
+    }
+
+    private sealed class PendingAlerts : IPriceAlertService
+    {
+        private readonly TaskCompletionSource completion = new();
+        public bool Entered { get; private set; }
+        public Task CheckAsync(string symbol, decimal currentPrice) { Entered = true; return completion.Task; }
+        public Task ResetAsync(string symbol, AlertType? type = null) => Task.CompletedTask;
+        public Task ApplySettingsAsync(AppSettings updated, IReadOnlyList<AlertResetRequest> resets) => Task.CompletedTask;
+        public void Release() => completion.SetResult();
+    }
+
+    private sealed class TestApp : App
+    {
+        // WPF schedules startup on its dispatcher even without Application.Run.
+        // Keep view/runtime tests independent of Binance and the user's real settings.
+        protected override void OnStartup(StartupEventArgs e) { }
     }
 
     private static void Render(Window window, string filename)

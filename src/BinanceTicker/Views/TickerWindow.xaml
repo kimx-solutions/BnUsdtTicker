@@ -149,7 +149,10 @@
                             <Border Style="{StaticResource TickerRow}" BorderBrush="{DynamicResource TickerSeparator}" BorderThickness="0,0,0,1" ToolTip="{Binding UpdatedText}">
                                 <Grid>
                                     <Grid.ColumnDefinitions><ColumnDefinition Width="80" /><ColumnDefinition /><ColumnDefinition Width="85" /></Grid.ColumnDefinitions>
-                                    <TextBlock Text="{Binding Asset}" FontWeight="SemiBold" FontSize="14" VerticalAlignment="Center" />
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding Asset}" FontWeight="SemiBold" FontSize="14" />
+                                        <TextBlock Text="▲ 提醒" FontSize="9" Foreground="{DynamicResource ThemeWarning}" ToolTip="{Binding AlertStatusText}" AutomationProperties.Name="{Binding AlertStatusText}" Visibility="{Binding HasTriggeredAlert, Converter={StaticResource BoolVisibility}}" />
+                                    </StackPanel>
                                     <TextBlock Grid.Column="1" Text="{Binding PriceText}" FontFamily="Consolas" FontSize="15" HorizontalAlignment="Right" VerticalAlignment="Center" />
                                     <TextBlock Grid.Column="2" Text="{Binding ChangeText}" FontFamily="Consolas" FontSize="12" HorizontalAlignment="Right" VerticalAlignment="Center" Visibility="{Binding DataContext.ShowChangePercent, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolVisibility}}">
                                         <TextBlock.Style><Style TargetType="TextBlock">

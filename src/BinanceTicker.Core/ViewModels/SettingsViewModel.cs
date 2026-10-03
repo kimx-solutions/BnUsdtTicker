@@ -14,6 +14,7 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
     private string error = "";
     private bool isBusy;
     private SymbolSetting? selectedSymbol;
+    private readonly Dictionary<string, PriceAlertEditorViewModel> alertEditors = new(StringComparer.Ordinal);
     public ObservableCollection<SymbolSetting> Symbols { get; }
     public string NewSymbol { get => newSymbol; set => Set(ref newSymbol, value); }
     public string Error { get => error; set => Set(ref error, value); }
@@ -26,8 +27,11 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
     public SymbolSetting? SelectedSymbol
     {
         get => selectedSymbol;
-        set { Set(ref selectedSymbol, value); RefreshSelection(); }
+        set { Set(ref selectedSymbol, value); Notify(nameof(SelectedAlert)); Notify(nameof(HasSelectedAlert)); RefreshSelection(); }
     }
+    public bool HasSelectedAlert => SelectedSymbol is not null;
+    public PriceAlertEditorViewModel? SelectedAlert => SelectedSymbol is { } item ? AlertEditor(item) : null;
+    public RelayCommand ResetAllAlertsCommand { get; }
     public DisplayMode Mode { get; set; }
     public Array Modes { get; } = Enum.GetValues<DisplayMode>();
     public bool ShowOnStartup { get; set; }
@@ -51,6 +55,11 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
         RemoveCommand = new(Remove, () => SelectedSymbol is not null);
         MoveUpCommand = new(() => Move(-1), () => SelectedSymbol is not null && Symbols.IndexOf(SelectedSymbol) > 0);
         MoveDownCommand = new(() => Move(1), () => SelectedSymbol is not null && Symbols.IndexOf(SelectedSymbol) < Symbols.Count - 1);
+        ResetAllAlertsCommand = new(() =>
+        {
+            foreach (var item in Symbols) AlertEditor(item).ResetBothCommand.Execute(null);
+        });
+        SelectedSymbol = Symbols.FirstOrDefault();
     }
 
     public async Task AddAsync()
@@ -82,8 +91,36 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
         settings.Mode = Mode; settings.ShowOnStartup = ShowOnStartup;
         settings.Window.Opacity = Opacity;
         settings.Ui.ShowChangePercent = ShowChangePercent; settings.Ui.CompactMode = CompactMode;
-        settings.Symbols = Symbols.Select((s, i) => new SymbolSetting { Symbol = s.Symbol, Enabled = s.Enabled, Order = i + 1 }).ToList();
+        settings.Symbols = Symbols.Select((s, i) =>
+        {
+            var copy = s.Copy(); copy.Order = i + 1; copy.Alert = AlertEditor(s).CreateAlert(); return copy;
+        }).ToList();
         return settings;
+    }
+
+    private PriceAlertEditorViewModel AlertEditor(SymbolSetting item)
+    {
+        if (!alertEditors.TryGetValue(item.Symbol, out var editor))
+            alertEditors[item.Symbol] = editor = new(item.Symbol, item.Alert);
+        return editor;
+    }
+
+    public IReadOnlyList<AlertResetRequest> GetAlertResets() => Symbols.SelectMany(item =>
+    {
+        var editor = AlertEditor(item);
+        var requests = new List<AlertResetRequest>();
+        if (editor.ResetUpperRequested) requests.Add(new(item.Symbol, AlertType.Upper));
+        if (editor.ResetLowerRequested) requests.Add(new(item.Symbol, AlertType.Lower));
+        return requests;
+    }).ToArray();
+
+    public void RefreshAlertStates(AppSettings live)
+    {
+        foreach (var item in Symbols)
+        {
+            var current = live.Symbols.FirstOrDefault(s => s.Symbol == item.Symbol);
+            if (current is not null) AlertEditor(item).RefreshState(current.Alert);
+        }
     }
 
     private void Remove()
@@ -91,6 +128,7 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
         if (SelectedSymbol is not { } item) return;
         var index = Symbols.IndexOf(item);
         Symbols.Remove(item);
+        alertEditors.Remove(item.Symbol);
         SelectedSymbol = Symbols.Count == 0 ? null : Symbols[Math.Min(index, Symbols.Count - 1)];
         RefreshSelection();
     }

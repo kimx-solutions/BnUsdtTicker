@@ -68,6 +68,7 @@ public partial class SettingsWindow : Window
         if (saving || !ViewModel.CanSave) return;
         saving = true; IsEnabled = false;
         try { if (await save(ViewModel.CreateSettings())) Close(); }
+        catch (ArgumentException ex) { ViewModel.Error = ex.Message; }
         finally { saving = false; IsEnabled = true; }
     }
 }

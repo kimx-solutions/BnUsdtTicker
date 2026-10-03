@@ -1,4 +1,5 @@
 using System.Net.Http;
+using System.Text.Json;
 using System.Windows;
 using BinanceTicker.Core.Models;
 using BinanceTicker.Core.Services;
@@ -23,6 +24,9 @@ public partial class App : Application
     private Task feedTask = Task.CompletedTask;
     private bool exiting;
     private int feedGeneration;
+    private IPriceAlertService alerts = null!;
+    private readonly HashSet<Task> pendingPriceUpdates = [];
+    private DateTimeOffset lastAlertWarning = DateTimeOffset.MinValue;
     protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
@@ -37,6 +41,7 @@ public partial class App : Application
         window.SettingsRequested += OpenSettings;
         window.ThemeRequested += ToggleTheme;
         tray = new(Dispatcher, manager.Show, OpenSettings, ChangeMode, () => _ = ExitAsync());
+        alerts = new PriceAlertService(settings, settingsService, new AlertHistoryService(), new NotificationService(tray));
         tray.SetMode(settings.Mode);
         if (settings.ShowOnStartup) manager.Show();
         if (settingsService.LoadWarning is { } warning) tray.ShowWarning(warning);
@@ -77,8 +82,8 @@ public partial class App : Application
         updated.Window.Left = settings.Window.Left; updated.Window.Top = settings.Window.Top;
         // A settings window opened before a theme switch must preserve the latest theme.
         updated.Ui.Theme = settings.Ui.Theme;
-        try { settingsService.Save(updated); }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        try { await alerts.ApplySettingsAsync(updated, settingsWindow?.ViewModel.GetAlertResets() ?? []); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or ArgumentException or AggregateException)
         { if (settingsWindow is not null) settingsWindow.ViewModel.Error = "儲存失敗：" + ex.Message; return false; }
         settings = updated;
         ticker.Configure(settings); manager!.Apply(settings); tray!.SetMode(settings.Mode);
@@ -101,9 +106,38 @@ public partial class App : Application
             var symbols = settings.Symbols.Where(s => s.Enabled).OrderBy(s => s.Order).Select(s => s.Symbol).ToArray();
             ticker.SetStatus(ConnectionStatus.Connecting);
             var feed = new MarketFeed(binance, new());
-            feedTask = Task.Run(() => feed.RunAsync(symbols, p => OnUi(() => ticker.Update(p)), status => OnUi(() => ticker.SetStatus(status)), token));
+            feedTask = Task.Run(() => feed.RunAsync(symbols, p => OnUi(() => QueuePriceUpdate(p)), status => OnUi(() => ticker.SetStatus(status)), token));
         }
         finally { feedGate.Release(); }
+    }
+    private async void QueuePriceUpdate(TickerPrice price)
+    {
+        var task = UpdatePriceAsync(price);
+        pendingPriceUpdates.Add(task);
+        try { await task; }
+        finally { pendingPriceUpdates.Remove(task); }
+    }
+
+    private async Task UpdatePriceAsync(TickerPrice price)
+    {
+        // Ignore quotes older than the row's last accepted timestamp, including reconnect snapshots.
+        if (!ticker.Update(price)) return;
+        try { await alerts.CheckAsync(price.Symbol, price.Price); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or
+            InvalidOperationException or System.ComponentModel.Win32Exception or AggregateException)
+        {
+            if (DateTimeOffset.Now - lastAlertWarning >= TimeSpan.FromMinutes(1))
+            {
+                lastAlertWarning = DateTimeOffset.Now;
+                tray?.ShowWarning("價格提醒無法送出：" + ex.Message);
+            }
+        }
+        finally
+        {
+            var alert = settings.Symbols.FirstOrDefault(s => s.Symbol == price.Symbol)?.Alert;
+            if (alert is not null) ticker.SetAlertState(price.Symbol, alert);
+            settingsWindow?.ViewModel.RefreshAlertStates(settings);
+        }
     }
     private async Task StopFeedAsync()
     {
@@ -120,6 +154,7 @@ public partial class App : Application
         await feedGate.WaitAsync();
         try { await StopFeedAsync(); }
         finally { feedGate.Release(); }
+        await Task.WhenAll(pendingPriceUpdates.ToArray());
         tray?.Dispose(); tray = null;
         manager?.CloseForExit(); manager?.Dispose(); http.Dispose(); Shutdown();
     }

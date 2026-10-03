@@ -9,6 +9,8 @@ public enum TickerSortColumn { Symbol, Price, ChangePercent }
 public sealed class TickerRowViewModel(string symbol) : ObservableObject
 {
     private TickerPrice? price;
+    private bool upperTriggered;
+    private bool lowerTriggered;
     public string Symbol { get; } = symbol;
     public string Asset => Symbol[..^4];
     public decimal? Price => price?.Price;
@@ -17,15 +19,28 @@ public sealed class TickerRowViewModel(string symbol) : ObservableObject
     public string ChangeText => price is null ? "—" : PriceFormatter.Change(price.ChangePercent24h);
     public bool IsPositive => price?.ChangePercent24h >= 0;
     public bool HasPrice => price is not null;
+    public bool HasTriggeredAlert => upperTriggered || lowerTriggered;
+    public string AlertStatusText => "價格提醒：" + string.Join("、", new[]
+    {
+        upperTriggered ? "上限已提醒" : null, lowerTriggered ? "下限已提醒" : null
+    }.Where(s => s is not null)) + "；可在設定中重設。";
     public string UpdatedText => price is null ? "等待報價" : "更新於 " + price.UpdatedAt.ToLocalTime().ToString("HH:mm:ss");
 
-    public void Update(TickerPrice value)
+    public bool Update(TickerPrice value)
     {
-        if (price is not null && value.UpdatedAt < price.UpdatedAt) return;
+        if (price is not null && value.UpdatedAt < price.UpdatedAt) return false;
         price = value;
         Notify(nameof(Price)); Notify(nameof(ChangePercent24h));
         Notify(nameof(PriceText)); Notify(nameof(ChangeText)); Notify(nameof(IsPositive));
         Notify(nameof(HasPrice)); Notify(nameof(UpdatedText));
+        return true;
+    }
+
+    public void SetAlertState(PriceAlertSettings alert)
+    {
+        upperTriggered = alert.UpperTriggered;
+        lowerTriggered = alert.LowerTriggered;
+        Notify(nameof(HasTriggeredAlert)); Notify(nameof(AlertStatusText));
     }
 }
 
@@ -75,7 +90,11 @@ public sealed class TickerViewModel : ObservableObject
         var existing = Prices.ToDictionary(p => p.Symbol);
         Prices.Clear();
         foreach (var symbol in settings.Symbols.Where(s => s.Enabled).OrderBy(s => s.Order))
-            Prices.Add(existing.TryGetValue(symbol.Symbol, out var row) ? row : new(symbol.Symbol));
+        {
+            var row = existing.TryGetValue(symbol.Symbol, out var existingRow) ? existingRow : new(symbol.Symbol);
+            row.SetAlertState(symbol.Alert);
+            Prices.Add(row);
+        }
         ShowChangePercent = settings.Ui.ShowChangePercent;
         CompactMode = settings.Ui.CompactMode;
         SetMode(settings.Mode);
@@ -122,12 +141,16 @@ public sealed class TickerViewModel : ObservableObject
         }
     }
 
-    public void Update(TickerPrice price)
+    public bool Update(TickerPrice price)
     {
         var row = Prices.FirstOrDefault(p => p.Symbol == price.Symbol);
-        if (row is null) return;
-        row.Update(price);
+        if (row is null || !row.Update(price)) return false;
         ApplySort();
+        return true;
+    }
+    public void SetAlertState(string symbol, PriceAlertSettings alert)
+    {
+        Prices.FirstOrDefault(p => p.Symbol == symbol)?.SetAlertState(alert);
     }
     public void SetStatus(ConnectionStatus value)
     {

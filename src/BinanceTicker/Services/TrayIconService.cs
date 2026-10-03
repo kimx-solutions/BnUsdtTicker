@@ -44,6 +44,7 @@ public sealed class TrayIconService : IDisposable
         menu.Invalidate(true);
     }
     public void ShowWarning(string message) => tray.ShowBalloonTip(6000, "Binance Ticker", message, Forms.ToolTipIcon.Warning);
+    public void ShowNotification(string title, string message) => tray.ShowBalloonTip(6000, title, message, Forms.ToolTipIcon.Info);
     private static Drawing.Icon CreateIcon()
     {
         var resource = Application.GetResourceStream(new Uri("pack://application:,,,/BinanceTicker;component/Assets/app.ico"));
