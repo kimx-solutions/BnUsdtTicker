@@ -1,0 +1,11 @@
+{
+  "mode": "Fix",
+  "showOnStartup": true,
+  "window": { "left": 100, "top": 100, "opacity": 0.95 },
+  "symbols": [
+    { "symbol": "BTCUSDT", "enabled": true, "order": 1 },
+    { "symbol": "ETHUSDT", "enabled": true, "order": 2 },
+    { "symbol": "ENAUSDT", "enabled": true, "order": 3 }
+  ],
+  "ui": { "showChangePercent": true, "compactMode": true }
+}

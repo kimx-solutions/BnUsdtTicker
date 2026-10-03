@@ -1,0 +1,68 @@
+using System.Runtime.InteropServices;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Input;
+using System.Windows.Interop;
+using System.Windows.Media;
+using BinanceTicker.Core.Models;
+using BinanceTicker.Core.ViewModels;
+
+namespace BinanceTicker.Views;
+
+public partial class SettingsWindow : Window
+{
+    private readonly Func<AppSettings, Task<bool>> save;
+    private bool saving;
+    public SettingsViewModel ViewModel { get; }
+    public SettingsWindow(SettingsViewModel viewModel, Func<AppSettings, Task<bool>> save)
+    {
+        InitializeComponent();
+        ViewModel = viewModel; DataContext = viewModel; this.save = save;
+        Closed += (_, _) => ViewModel.Dispose();
+        // Explicit primary placement matches WorkArea. CenterScreen can choose the mouse's monitor.
+        var area = SystemParameters.WorkArea;
+        WindowStartupLocation = WindowStartupLocation.Manual;
+        MaxHeight = area.Height;
+        MaxWidth = area.Width;
+        Height = Math.Min(Height, area.Height);
+        Width = Math.Min(Width, area.Width);
+        Left = area.Left + (area.Width - Width) / 2;
+        Top = area.Top + (area.Height - Height) / 2;
+    }
+    protected override void OnSourceInitialized(EventArgs e)
+    {
+        base.OnSourceInitialized(e);
+        if (!OperatingSystem.IsWindowsVersionAtLeast(10, 0, 22000)) return;
+        var handle = new WindowInteropHelper(this).Handle;
+        var darkMode = 1;
+        _ = DwmSetWindowAttribute(handle, 20, ref darkMode, sizeof(int));
+        SetColor(34, "SettingsBorder");
+        SetColor(35, "SettingsBackground");
+        SetColor(36, "SettingsText");
+        void SetColor(int attribute, string resourceKey)
+        {
+            var color = ((SolidColorBrush)FindResource(resourceKey)).Color;
+            var colorRef = color.R | (color.G << 8) | (color.B << 16);
+            _ = DwmSetWindowAttribute(handle, attribute, ref colorRef, sizeof(int));
+        }
+    }
+    [DllImport("dwmapi.dll")]
+    private static extern int DwmSetWindowAttribute(IntPtr handle, int attribute, ref int value, int size);
+
+    private void SelectSymbolRow(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ChangedButton != MouseButton.Left) return;
+        var list = (ListBox)sender;
+        if (e.OriginalSource is DependencyObject source &&
+            ItemsControl.ContainerFromElement(list, source) is ListBoxItem item)
+            item.IsSelected = true;
+    }
+    private void CancelClicked(object sender, RoutedEventArgs e) => Close();
+    private async void SaveClicked(object sender, RoutedEventArgs e)
+    {
+        if (saving || !ViewModel.CanSave) return;
+        saving = true; IsEnabled = false;
+        try { if (await save(ViewModel.CreateSettings())) Close(); }
+        finally { saving = false; IsEnabled = true; }
+    }
+}
