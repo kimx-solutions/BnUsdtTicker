@@ -35,6 +35,7 @@ public sealed class TickerViewModel : ObservableObject
     public bool ShowChangePercent { get => showChangePercent; private set => Set(ref showChangePercent, value); }
     public bool CompactMode { get => compactMode; private set => Set(ref compactMode, value); }
     public string ModeText => mode == DisplayMode.Fix ? "FIX" : "FLOAT";
+    public ConnectionStatus Status => status;
     public bool IsConnected => status == ConnectionStatus.Connected;
     public string StatusText => IsEmpty ? "請在設定中啟用幣種" : status switch
     {
@@ -59,6 +60,6 @@ public sealed class TickerViewModel : ObservableObject
     public void SetStatus(ConnectionStatus value)
     {
         status = value;
-        Notify(nameof(StatusText)); Notify(nameof(IsConnected));
+        Notify(nameof(Status)); Notify(nameof(StatusText)); Notify(nameof(IsConnected));
     }
 }
