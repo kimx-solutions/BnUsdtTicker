@@ -84,6 +84,24 @@ Windows 桌面視窗，顯示你選擇的幣種價格與 24 小時漲跌幅。
 
 可參考 [settings.example.json](settings.example.json)；手動編輯設定檔前，請先結束程式。
 
+## 免責聲明
+
+本專案是獨立開源工具，並非 Binance 官方產品，也未獲 Binance 背書。
+顯示的行情僅供資訊參考，不構成投資建議、交易建議或買賣邀約。
+
+報價來自 Binance 公開市場資料，可能因網路、服務中斷或資料更新而延遲、缺漏或不準確。
+斷線時會保留最後收到的價格；進行任何交易前，請自行向交易平台確認最新報價。
+使用者應自行判斷並承擔投資風險。
+
+本軟體依 MIT 授權按「現況」提供，不保證行情的準確性、完整性、即時性或服務持續可用。
+作者與著作權人不就使用本軟體或依其資料作出的決策及損失承擔責任；完整條款請見 [LICENSE](LICENSE)。
+
+## 授權
+
+本專案採用 [MIT License](LICENSE)，允許使用、修改、散布及商業使用，
+但必須保留原有著作權聲明與授權條款。
+隨發佈包附帶的第三方元件，仍適用各自的授權。
+
 <details>
 <summary>給開發者：執行、建置、發佈與測試</summary>
 
@@ -128,7 +146,7 @@ git push origin v1.0.0
 
 Release 附件：
 
-- `BinanceTicker-v1.0.0-win-x64.zip`：完整程式、.NET runtime、README 與設定範例。
+- `BinanceTicker-v1.0.0-win-x64.zip`：完整程式、.NET runtime、README、LICENSE 與設定範例。
 - `BinanceTicker-v1.0.0-win-x64.zip.sha256`：ZIP 的 SHA256 校驗值。
 
 下載並完整解壓縮 ZIP，執行 `BinanceTicker.exe`，無需安裝 .NET。
