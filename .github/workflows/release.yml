@@ -1,0 +1,144 @@
+name: Release Windows app
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing version tag (e.g. v1.0.0 or v1.0.0-beta.1)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+    steps:
+      - name: Validate version tag
+        id: version
+        run: |
+          if ($env:RELEASE_TAG -notmatch '^v(?<version>(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(-[0-9A-Za-z]+([.-][0-9A-Za-z]+)*)?)$') {
+            throw 'Expected a version tag such as v1.0.0 or v1.0.0-beta.1.'
+          }
+          "version=$($Matches.version)" >> $env:GITHUB_OUTPUT
+
+      - name: Check out the release tag
+        uses: actions/checkout@v7
+        with:
+          ref: refs/tags/${{ env.RELEASE_TAG }}
+          persist-credentials: false
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore
+        run: dotnet restore BinanceTicker.sln
+
+      - name: Build
+        run: dotnet build BinanceTicker.sln --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test BinanceTicker.sln --configuration Release --no-build --logger trx --results-directory artifacts/test-results
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-results-${{ env.RELEASE_TAG }}
+          path: artifacts/test-results/*.trx
+          if-no-files-found: ignore
+
+      - name: Publish self-contained Windows x64 app
+        env:
+          APP_VERSION: ${{ steps.version.outputs.version }}
+        run: >-
+          dotnet publish src/BinanceTicker/BinanceTicker.csproj
+          --configuration Release --runtime win-x64 --self-contained true
+          -p:Version=$env:APP_VERSION -p:DebugType=None -p:DebugSymbols=false
+          --output artifacts/publish
+
+      - name: Package app and calculate SHA256
+        run: |
+          New-Item -ItemType Directory -Path artifacts/release -Force | Out-Null
+          Copy-Item -LiteralPath README.md, settings.example.json -Destination artifacts/publish
+          $archiveName = "BinanceTicker-$env:RELEASE_TAG-win-x64.zip"
+          $archivePath = Join-Path artifacts/release $archiveName
+          Compress-Archive -Path artifacts/publish/* -DestinationPath $archivePath -Force
+          $hash = (Get-FileHash -LiteralPath $archivePath -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  $archiveName" | Set-Content -LiteralPath "$archivePath.sha256" -Encoding utf8NoBOM
+
+      - name: Upload release package
+        uses: actions/upload-artifact@v7
+        with:
+          name: BinanceTicker-${{ env.RELEASE_TAG }}-win-x64
+          path: artifacts/release/*
+          if-no-files-found: error
+          compression-level: 0
+
+      - name: Create GitHub Release and upload assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          $assets = @(Get-ChildItem -LiteralPath artifacts/release -File)
+          $existing = gh release view $env:RELEASE_TAG --json assets,isDraft 2>$null
+          if ($LASTEXITCODE -eq 0) {
+            $release = $existing | ConvertFrom-Json
+            $existingNames = @($release.assets | ForEach-Object { $_.name })
+            $archive = $assets | Where-Object Extension -eq '.zip'
+            $checksum = $assets | Where-Object Extension -eq '.sha256'
+            $hasArchive = $archive.Name -in $existingNames
+            $hasChecksum = $checksum.Name -in $existingNames
+            if ($hasArchive -ne $hasChecksum) {
+              $downloadDirectory = Join-Path $env:RUNNER_TEMP 'existing-release-assets'
+              New-Item -ItemType Directory -Path $downloadDirectory -Force | Out-Null
+              if ($hasArchive) {
+                gh release download $env:RELEASE_TAG --pattern $archive.Name --dir $downloadDirectory --clobber
+                if ($LASTEXITCODE -ne 0) { throw 'Failed to download the existing ZIP.' }
+                $existingZip = Join-Path $downloadDirectory $archive.Name
+                $hash = (Get-FileHash -LiteralPath $existingZip -Algorithm SHA256).Hash.ToLowerInvariant()
+                "$hash  $($archive.Name)" | Set-Content -LiteralPath $checksum.FullName -Encoding utf8NoBOM
+              } else {
+                gh release download $env:RELEASE_TAG --pattern $checksum.Name --dir $downloadDirectory --clobber
+                if ($LASTEXITCODE -ne 0) { throw 'Failed to download the existing checksum.' }
+                $expectedHash = ((Get-Content -LiteralPath (Join-Path $downloadDirectory $checksum.Name) -Raw).Trim() -split '\s+')[0]
+                $actualHash = (Get-FileHash -LiteralPath $archive.FullName -Algorithm SHA256).Hash
+                if ($expectedHash -notmatch '^[a-fA-F0-9]{64}$' -or $expectedHash -ne $actualHash) {
+                  throw 'Existing checksum differs from the rebuilt ZIP. Remove the partial checksum asset or use a new version tag.'
+                }
+              }
+            }
+            $missing = @($assets | Where-Object { $_.Name -notin $existingNames } | ForEach-Object { $_.FullName })
+            if ($missing.Count -gt 0) {
+              gh release upload $env:RELEASE_TAG @missing
+              if ($LASTEXITCODE -ne 0) { throw 'Failed to upload release assets.' }
+            }
+            if ($release.isDraft) {
+              gh release edit $env:RELEASE_TAG --draft=false
+              if ($LASTEXITCODE -ne 0) { throw 'Failed to publish the recovered draft release.' }
+            }
+          } else {
+            $releaseArgs = @('release', 'create', $env:RELEASE_TAG, '--verify-tag', '--generate-notes', '--title', "Binance Ticker $env:RELEASE_TAG")
+            if ($env:RELEASE_TAG.Contains('-')) { $releaseArgs += '--prerelease' }
+            $releaseArgs += @($assets | ForEach-Object { $_.FullName })
+            gh @releaseArgs
+            if ($LASTEXITCODE -ne 0) { throw 'Failed to create GitHub Release.' }
+          }

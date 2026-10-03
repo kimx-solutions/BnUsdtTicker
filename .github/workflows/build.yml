@@ -1,7 +1,11 @@
 name: Windows build and tests
 on:
   push:
+    branches:
+      - '**'
   pull_request:
+permissions:
+  contents: read
 jobs:
   build:
     runs-on: windows-latest
