@@ -1,3 +1,5 @@
+<img src="docs/images/app-icon.png" alt="Binance USDT Desktop Ticker 圖示" width="128" height="128">
+
 # Binance USDT Desktop Ticker
 
 **工作時，偶爾看一眼行情。把價格放在桌面的小角落，留給自己欣賞。**
