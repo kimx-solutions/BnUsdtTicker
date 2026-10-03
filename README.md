@@ -11,6 +11,23 @@ Windows 桌面視窗，顯示你選擇的幣種價格與 24 小時漲跌幅。
 拖到喜歡的角落，讓它安靜陪著你；想看時瞄一眼，想專心時收回系統匣。
 **不需要 Binance 帳號，不需要 API Key，也不需要提供個人資訊。**
 
+## 畫面預覽
+
+以下為程式實際介面，報價使用示例資料，並非即時行情。
+
+### 報價視窗
+
+在桌面小角落查看價格與 24 小時漲跌幅；點齒輪開啟設定，點欄位標題可切換排序。
+右下角圖示顯示觀看模式與連線狀態。
+
+![報價視窗：BTC、ETH、ENA 的 USDT 價格、24 小時漲跌幅與狀態圖示](docs/images/ticker-window.png)
+
+### 設定畫面
+
+新增、勾選、排序或刪除監控幣種，調整觀看模式、顯示欄位、列高與透明度，按「儲存」套用。
+
+![設定畫面：監控幣種清單、Fix／Float 模式、顯示選項與透明度](docs/images/settings-window.png)
+
 ## 下載
 
 [**前往 GitHub Releases 下載**](https://github.com/kimx-solutions/BnUsdtTicker/releases)
