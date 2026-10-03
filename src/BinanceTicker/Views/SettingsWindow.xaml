@@ -51,37 +51,6 @@
                     </StackPanel>
                 </Grid>
                 <Border BorderBrush="{DynamicResource SettingsBorder}" BorderThickness="0,1,0,0" Margin="0,18,0,14" />
-                <TextBlock Text="價格提醒" FontSize="15" FontWeight="SemiBold" Margin="0,0,0,8" />
-                <TextBlock Text="選取上方幣種設定上下限。首次到達時通知，重設後才會再次提醒。" TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource SettingsMuted}" Margin="0,0,0,12" />
-                <Border Visibility="{Binding HasSelectedAlert, Converter={StaticResource BoolVisibility}}">
-                    <StackPanel DataContext="{Binding SelectedAlert}">
-                        <TextBlock Text="{Binding Symbol}" FontWeight="SemiBold" Foreground="{DynamicResource SettingsAccent}" Margin="0,0,0,10" />
-                        <Grid Margin="0,0,0,6">
-                            <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                            <TextBlock Text="上限價格 · USDT" />
-                            <TextBlock Grid.Column="1" Text="{Binding UpperStatus}" Foreground="{DynamicResource SettingsMuted}" />
-                        </Grid>
-                        <Grid Margin="0,0,0,12">
-                            <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="12" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                            <TextBox x:Name="UpperPriceInput" Text="{Binding UpperPriceText, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="上限價格" ToolTip="正數，小數點使用 .；留空停用" />
-                            <Button Grid.Column="2" Content="重設上限" Command="{Binding ResetUpperCommand}" />
-                        </Grid>
-                        <Grid Margin="0,0,0,6">
-                            <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                            <TextBlock Text="下限價格 · USDT" />
-                            <TextBlock Grid.Column="1" Text="{Binding LowerStatus}" Foreground="{DynamicResource SettingsMuted}" />
-                        </Grid>
-                        <Grid Margin="0,0,0,12">
-                            <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="12" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                            <TextBox x:Name="LowerPriceInput" Text="{Binding LowerPriceText, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="下限價格" ToolTip="正數，小數點使用 .；留空停用" />
-                            <Button Grid.Column="2" Content="重設下限" Command="{Binding ResetLowerCommand}" />
-                        </Grid>
-                        <Button Content="重設此幣種提醒" Command="{Binding ResetBothCommand}" HorizontalAlignment="Left" Margin="0,0,0,10" />
-                    </StackPanel>
-                </Border>
-                <Button Content="重設全部幣種提醒" Command="{Binding ResetAllAlertsCommand}" HorizontalAlignment="Left" Margin="0,0,0,8" />
-                <TextBlock Text="留空可停用該條件；價格及重設操作按「儲存」後生效。" TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource SettingsMuted}" />
-                <Border BorderBrush="{DynamicResource SettingsBorder}" BorderThickness="0,1,0,0" Margin="0,18,0,14" />
                 <TextBlock Text="顯示設定" FontSize="15" FontWeight="SemiBold" Margin="0,0,0,12" />
                 <Grid Margin="0,0,0,8">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="120" /></Grid.ColumnDefinitions>

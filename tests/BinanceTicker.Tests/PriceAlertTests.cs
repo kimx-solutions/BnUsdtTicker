@@ -280,6 +280,70 @@ public sealed class PriceAlertTests : IDisposable
         finally { if (File.Exists(history.FilePath)) File.SetAttributes(history.FilePath, FileAttributes.Normal); }
     }
 
+    [Fact]
+    public async Task IndependentSaveKeepsOtherSymbolsPreferencesAndLiveTriggers()
+    {
+        var (settings, store, _, _, service) = Create();
+        settings.Symbols.Add(new() { Symbol = "ETHUSDT", Alert = new() { LowerPrice = 2000m } });
+        settings.Window.Opacity = 0.73;
+        var oldAlert = settings.Symbols[0].Alert.Copy();
+        await service.CheckAsync("BTCUSDT", 90000m);
+        oldAlert.UpperPrice = 95000m;
+        await service.SaveAlertAsync("BTCUSDT", oldAlert, []);
+        var saved = store.Load();
+        Assert.Equal(0.73, saved.Window.Opacity);
+        Assert.Equal(2000m, saved.Symbols[1].Alert.LowerPrice);
+        Assert.Equal(95000m, saved.Symbols[0].Alert.UpperPrice);
+        Assert.True(saved.Symbols[0].Alert.UpperTriggered);
+        await service.SaveAlertAsync("BTCUSDT", oldAlert, [new("ETHUSDT", AlertType.Lower), new("BTCUSDT", AlertType.Upper)]);
+        Assert.False(settings.Symbols[0].Alert.UpperTriggered);
+    }
+
+    [Fact]
+    public async Task GeneralSettingsSavePreservesLatestIndependentAlertEdits()
+    {
+        var (settings, store, _, notifications, service) = Create();
+        var staleGeneralSettings = settings.Copy();
+        await service.SaveAlertAsync("BTCUSDT", new() { UpperPrice = 95000m }, []);
+        await service.CheckAsync("BTCUSDT", 95000m);
+        staleGeneralSettings.Window.Opacity = 0.6;
+        await service.ApplySettingsAsync(staleGeneralSettings, [], preserveAlerts: true);
+        var saved = store.Load();
+        Assert.Equal(0.6, saved.Window.Opacity);
+        Assert.Equal(95000m, saved.Symbols[0].Alert.UpperPrice);
+        Assert.Null(saved.Symbols[0].Alert.LowerPrice);
+        Assert.True(saved.Symbols[0].Alert.UpperTriggered);
+        // Further independent saves must target the newly installed settings object.
+        await service.SaveAlertAsync("BTCUSDT", new() { UpperPrice = 96000m }, [new("BTCUSDT", AlertType.Upper)]);
+        await service.CheckAsync("BTCUSDT", 96000m);
+        Assert.Equal(96000m, notifications.Entries[1].TargetPrice);
+        Assert.Equal(96000m, store.Load().Symbols[0].Alert.UpperPrice);
+    }
+
+    [Fact]
+    public async Task FailedIndependentSaveLeavesLiveAlertUnchanged()
+    {
+        var (settings, store, _, _, service) = Create();
+        await service.CheckAsync("BTCUSDT", 90000m);
+        File.Delete(store.FilePath);
+        Directory.CreateDirectory(store.FilePath);
+        var failure = await Record.ExceptionAsync(() => service.SaveAlertAsync("BTCUSDT", new() { UpperPrice = 95000m }, [new("BTCUSDT", AlertType.Upper)]));
+        Assert.True(failure is IOException or UnauthorizedAccessException);
+        Assert.Equal(85000m, settings.Symbols[0].Alert.UpperPrice);
+        Assert.True(settings.Symbols[0].Alert.UpperTriggered);
+    }
+
+    [Fact]
+    public async Task RemovedSymbolCannotBeResurrectedByOpenAlertEditor()
+    {
+        var (settings, store, _, _, service) = Create();
+        var updated = settings.Copy();
+        updated.Symbols.Clear();
+        await service.ApplySettingsAsync(updated, [], preserveAlerts: true);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.SaveAlertAsync("BTCUSDT", new() { UpperPrice = 90000m }, []));
+        Assert.Empty(store.Load().Symbols);
+    }
+
     private (AppSettings, SettingsService, AlertHistoryService, RecordingNotifications, PriceAlertService) Create()
     {
         var settings = new AppSettings { Symbols = [new() { Symbol = "BTCUSDT", Alert = new() { UpperPrice = 85000m, LowerPrice = 80000m } }] };

@@ -11,7 +11,8 @@ public interface IPriceAlertService
 {
     Task CheckAsync(string symbol, decimal currentPrice);
     Task ResetAsync(string symbol, AlertType? type = null);
-    Task ApplySettingsAsync(AppSettings updated, IReadOnlyList<AlertResetRequest> resets);
+    Task ApplySettingsAsync(AppSettings updated, IReadOnlyList<AlertResetRequest> resets, bool preserveAlerts = false);
+    Task SaveAlertAsync(string symbol, PriceAlertSettings updated, IReadOnlyList<AlertResetRequest> resets);
 }
 
 public sealed class PriceAlertService(AppSettings settings, SettingsService store,
@@ -116,7 +117,7 @@ public sealed class PriceAlertService(AppSettings settings, SettingsService stor
         else alert.LowerTriggered = value;
     }
 
-    public async Task ApplySettingsAsync(AppSettings updated, IReadOnlyList<AlertResetRequest> resets)
+    public async Task ApplySettingsAsync(AppSettings updated, IReadOnlyList<AlertResetRequest> resets, bool preserveAlerts = false)
     {
         await gate.WaitAsync();
         try
@@ -126,6 +127,7 @@ public sealed class PriceAlertService(AppSettings settings, SettingsService stor
             foreach (var item in updated.Symbols)
             {
                 var live = settings.Symbols.FirstOrDefault(s => s.Symbol == item.Symbol)?.Alert;
+                if (preserveAlerts && live is not null) item.Alert = live.Copy();
                 item.Alert.UpperTriggered = live?.UpperTriggered ?? false;
                 item.Alert.LowerTriggered = live?.LowerTriggered ?? false;
                 foreach (var request in resets.Where(r => r.Symbol == item.Symbol))
@@ -133,6 +135,26 @@ public sealed class PriceAlertService(AppSettings settings, SettingsService stor
             }
             store.Save(updated);
             settings = updated;
+        }
+        finally { gate.Release(); }
+    }
+
+    public async Task SaveAlertAsync(string symbol, PriceAlertSettings updated, IReadOnlyList<AlertResetRequest> resets)
+    {
+        await gate.WaitAsync();
+        try
+        {
+            EnsureRecovered();
+            var item = settings.Symbols.FirstOrDefault(s => s.Symbol == symbol)
+                ?? throw new InvalidOperationException("此幣種已移除，請關閉警示視窗。");
+            var alert = updated.Copy();
+            alert.UpperTriggered = item.Alert.UpperTriggered;
+            alert.LowerTriggered = item.Alert.LowerTriggered;
+            foreach (var request in resets.Where(r => r.Symbol == symbol)) SetTriggered(alert, request.Type, false);
+            var snapshot = settings.Copy();
+            snapshot.Symbols.Single(s => s.Symbol == symbol).Alert = alert;
+            store.Save(snapshot);
+            item.Alert = alert;
         }
         finally { gate.Release(); }
     }

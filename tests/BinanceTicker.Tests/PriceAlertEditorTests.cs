@@ -77,33 +77,27 @@ public sealed class PriceAlertEditorTests
     }
 
     [Fact]
-    public void SwitchingSymbolsRetainsDraftsAndValidatesAllOfThem()
+    public void IndependentEditorsKeepSeparateDrafts()
     {
-        using var editor = new SettingsViewModel(CreateSettings(), new NoNetwork());
-        editor.SelectedAlert!.UpperPriceText = "invalid";
-        editor.SelectedSymbol = editor.Symbols[1];
-        editor.SelectedAlert!.LowerPriceText = "2950.2";
-        Assert.Throws<ArgumentException>(() => editor.CreateSettings());
-        editor.SelectedSymbol = editor.Symbols[0];
-        editor.SelectedAlert!.UpperPriceText = "90000";
-        var draft = editor.CreateSettings();
-        Assert.Equal(90000m, draft.Symbols[0].Alert.UpperPrice);
-        Assert.True(draft.Symbols[0].Alert.UpperTriggered);
-        Assert.Equal(2950.2m, draft.Symbols[1].Alert.LowerPrice);
+        var settings = CreateSettings();
+        var btc = new PriceAlertEditorViewModel("BTCUSDT", settings.Symbols[0].Alert) { UpperPriceText = "invalid" };
+        var eth = new PriceAlertEditorViewModel("ETHUSDT", settings.Symbols[1].Alert) { LowerPriceText = "2950.2" };
+        Assert.Throws<ArgumentException>(() => btc.CreateAlert());
+        Assert.Equal(2950.2m, eth.CreateAlert().LowerPrice);
+        btc.UpperPriceText = "90000";
+        Assert.Equal(90000m, btc.CreateAlert().UpperPrice);
+        Assert.True(btc.CreateAlert().UpperTriggered);
     }
 
     [Fact]
-    public void GlobalResetRearmsAllDraftsWithoutChangingLiveSettings()
+    public void ResetBothOnlyStagesThisSymbolsConditions()
     {
         var settings = CreateSettings();
-        using var editor = new SettingsViewModel(settings, new NoNetwork());
-        editor.ResetAllAlertsCommand.Execute(null);
-        Assert.Equal(4, editor.GetAlertResets().Count);
-        Assert.All(editor.CreateSettings().Symbols, s =>
-        {
-            Assert.False(s.Alert.UpperTriggered);
-            Assert.False(s.Alert.LowerTriggered);
-        });
+        var editor = new PriceAlertEditorViewModel("BTCUSDT", settings.Symbols[0].Alert);
+        editor.ResetBothCommand.Execute(null);
+        Assert.Equal(new[] { new AlertResetRequest("BTCUSDT", AlertType.Upper), new("BTCUSDT", AlertType.Lower) }, editor.GetAlertResets());
+        Assert.False(editor.CreateAlert().UpperTriggered);
+        Assert.False(editor.CreateAlert().LowerTriggered);
         Assert.All(settings.Symbols, s => Assert.True(s.Alert.UpperTriggered));
     }
 

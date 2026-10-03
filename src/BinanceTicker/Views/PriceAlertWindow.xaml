@@ -1,0 +1,57 @@
+<Window x:Class="BinanceTicker.Views.PriceAlertWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="價格警示" Icon="/BinanceTicker;component/Assets/app.ico"
+        Width="420" Height="480" MinWidth="360" MinHeight="320"
+        WindowStartupLocation="Manual" FontFamily="Segoe UI, Microsoft JhengHei" FontSize="13"
+        Background="{DynamicResource SettingsBackground}" Foreground="{DynamicResource SettingsText}">
+    <Window.Resources>
+        <ResourceDictionary><ResourceDictionary.MergedDictionaries><ResourceDictionary Source="SettingsStyles.xaml" /></ResourceDictionary.MergedDictionaries></ResourceDictionary>
+    </Window.Resources>
+    <DockPanel Margin="24">
+        <StackPanel DockPanel.Dock="Top" Margin="0,0,0,20">
+            <TextBlock Text="價格警示" FontSize="23" FontWeight="SemiBold" />
+            <TextBlock Text="{Binding Symbol}" Foreground="{DynamicResource SettingsAccent}" FontWeight="SemiBold" Margin="0,6,0,0" />
+            <TextBlock Text="首次到達時通知；重設後才會再次提醒。" Foreground="{DynamicResource SettingsMuted}" FontSize="11" TextWrapping="Wrap" Margin="0,10,0,0" />
+        </StackPanel>
+        <Border DockPanel.Dock="Bottom" BorderBrush="{DynamicResource SettingsBorder}" BorderThickness="0,1,0,0" Padding="0,16,0,0" Margin="0,16,0,0">
+            <StackPanel>
+                <TextBlock x:Name="AlertErrorText" Text="{Binding Error}" Foreground="{DynamicResource ThemeError}" TextWrapping="Wrap" Margin="0,0,0,10">
+                    <TextBlock.Style><Style TargetType="TextBlock"><Style.Triggers>
+                        <Trigger Property="Text" Value=""><Setter Property="Visibility" Value="Collapsed" /></Trigger>
+                    </Style.Triggers></Style></TextBlock.Style>
+                </TextBlock>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button Content="取消" MinWidth="84" IsCancel="True" Click="CancelClicked" Margin="0,0,12,0" />
+                    <Button Content="儲存" MinWidth="96" Style="{StaticResource SettingsPrimaryButton}" IsDefault="True" Click="SaveClicked" />
+                </StackPanel>
+            </StackPanel>
+        </Border>
+        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <StackPanel>
+                <Grid Margin="0,0,0,6">
+                    <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                    <TextBlock Text="上限價格 · USDT" />
+                    <TextBlock Grid.Column="1" Text="{Binding UpperStatus}" Foreground="{DynamicResource SettingsMuted}" />
+                </Grid>
+                <Grid Margin="0,0,0,16">
+                    <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="12" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                    <TextBox x:Name="UpperPriceInput" Text="{Binding UpperPriceText, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="上限價格" ToolTip="正數，小數點使用 .；留空停用" />
+                    <Button Grid.Column="2" Content="重設上限" Command="{Binding ResetUpperCommand}" />
+                </Grid>
+                <Grid Margin="0,0,0,6">
+                    <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                    <TextBlock Text="下限價格 · USDT" />
+                    <TextBlock Grid.Column="1" Text="{Binding LowerStatus}" Foreground="{DynamicResource SettingsMuted}" />
+                </Grid>
+                <Grid Margin="0,0,0,16">
+                    <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="12" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                    <TextBox x:Name="LowerPriceInput" Text="{Binding LowerPriceText, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="下限價格" ToolTip="正數，小數點使用 .；留空停用" />
+                    <Button Grid.Column="2" Content="重設下限" Command="{Binding ResetLowerCommand}" />
+                </Grid>
+                <Button Content="重設此幣種提醒" Command="{Binding ResetBothCommand}" HorizontalAlignment="Left" Margin="0,0,0,10" />
+                <TextBlock Text="留空可停用該條件；價格及重設操作按「儲存」後生效。" TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource SettingsMuted}" />
+            </StackPanel>
+        </ScrollViewer>
+    </DockPanel>
+</Window>

@@ -8,7 +8,9 @@ public sealed class PriceAlertEditorViewModel : ObservableObject
     private readonly PriceAlertSettings alert;
     private string upperPriceText;
     private string lowerPriceText;
+    private string error = "";
     public string Symbol { get; }
+    public string Error { get => error; set => Set(ref error, value); }
     public string UpperPriceText { get => upperPriceText; set => Set(ref upperPriceText, value); }
     public string LowerPriceText { get => lowerPriceText; set => Set(ref lowerPriceText, value); }
     public string UpperStatus => Status(UpperPriceText, alert.UpperTriggered, ResetUpperRequested);
@@ -41,6 +43,14 @@ public sealed class PriceAlertEditorViewModel : ObservableObject
         result.UpperPrice = Parse(UpperPriceText, "上限");
         result.LowerPrice = Parse(LowerPriceText, "下限");
         return result;
+    }
+
+    public IReadOnlyList<AlertResetRequest> GetAlertResets()
+    {
+        var resets = new List<AlertResetRequest>();
+        if (ResetUpperRequested) resets.Add(new(Symbol, AlertType.Upper));
+        if (ResetLowerRequested) resets.Add(new(Symbol, AlertType.Lower));
+        return resets;
     }
 
     private decimal? Parse(string text, string side)

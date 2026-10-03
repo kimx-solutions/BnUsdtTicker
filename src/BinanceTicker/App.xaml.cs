@@ -19,6 +19,7 @@ public partial class App : Application
     private TickerWindowManager? manager;
     private TrayIconService? tray;
     private SettingsWindow? settingsWindow;
+    private readonly Dictionary<string, PriceAlertWindow> priceAlertWindows = new(StringComparer.Ordinal);
     private BinanceService binance = null!;
     private CancellationTokenSource? feedCancellation;
     private Task feedTask = Task.CompletedTask;
@@ -39,6 +40,7 @@ public partial class App : Application
         var window = new TickerWindow { DataContext = ticker };
         manager = new(window, settings, SaveSettings);
         window.SettingsRequested += OpenSettings;
+        window.PriceAlertRequested += OpenPriceAlert;
         window.ThemeRequested += ToggleTheme;
         tray = new(Dispatcher, manager.Show, OpenSettings, ChangeMode, () => _ = ExitAsync());
         alerts = new PriceAlertService(settings, settingsService, new AlertHistoryService(), new NotificationService(tray));
@@ -65,6 +67,7 @@ public partial class App : Application
         ThemeService.Apply(settings.Ui.Theme);
         ticker.SetTheme(settings.Ui.Theme);
         settingsWindow?.RefreshTheme();
+        foreach (var window in priceAlertWindows.Values) window.RefreshTheme();
         tray?.RefreshTheme();
         SaveSettings();
     }
@@ -82,14 +85,52 @@ public partial class App : Application
         updated.Window.Left = settings.Window.Left; updated.Window.Top = settings.Window.Top;
         // A settings window opened before a theme switch must preserve the latest theme.
         updated.Ui.Theme = settings.Ui.Theme;
-        try { await alerts.ApplySettingsAsync(updated, settingsWindow?.ViewModel.GetAlertResets() ?? []); }
+        try { await alerts.ApplySettingsAsync(updated, [], preserveAlerts: true); }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or ArgumentException or AggregateException)
         { if (settingsWindow is not null) settingsWindow.ViewModel.Error = "儲存失敗：" + ex.Message; return false; }
         settings = updated;
+        foreach (var symbol in priceAlertWindows.Keys.ToArray())
+            if (!settings.Symbols.Any(s => s.Symbol == symbol)) priceAlertWindows[symbol].Close();
+        RefreshAlertWindows();
         ticker.Configure(settings); manager!.Apply(settings); tray!.SetMode(settings.Mode);
         await RestartFeedAsync();
         if (!exiting) manager.Show();
         return true;
+    }
+    private void OpenPriceAlert(string symbol)
+    {
+        if (exiting) return;
+        if (priceAlertWindows.TryGetValue(symbol, out var existing))
+        {
+            if (existing.WindowState == WindowState.Minimized) existing.WindowState = WindowState.Normal;
+            existing.Activate(); return;
+        }
+        var item = settings.Symbols.FirstOrDefault(s => s.Symbol == symbol && s.Enabled);
+        if (item is null) return;
+        var editor = new PriceAlertEditorViewModel(symbol, item.Alert);
+        var window = new PriceAlertWindow(editor, (alert, resets) => SavePriceAlertAsync(symbol, editor, alert, resets));
+        priceAlertWindows.Add(symbol, window);
+        window.Closed += (_, _) => priceAlertWindows.Remove(symbol);
+        window.Show(); window.Activate();
+    }
+    private async Task<bool> SavePriceAlertAsync(string symbol, PriceAlertEditorViewModel editor,
+        PriceAlertSettings alert, IReadOnlyList<AlertResetRequest> resets)
+    {
+        if (exiting) return false;
+        try { await alerts.SaveAlertAsync(symbol, alert, resets); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or
+            ArgumentException or InvalidOperationException or AggregateException)
+        { editor.Error = "儲存失敗：" + ex.Message; return false; }
+        var live = settings.Symbols.FirstOrDefault(s => s.Symbol == symbol)?.Alert;
+        if (live is not null) ticker.SetAlertState(symbol, live);
+        RefreshAlertWindows();
+        return true;
+    }
+    private void RefreshAlertWindows()
+    {
+        foreach (var (symbol, window) in priceAlertWindows)
+            if (settings.Symbols.FirstOrDefault(s => s.Symbol == symbol)?.Alert is { } alert)
+                window.ViewModel.RefreshState(alert);
     }
     private async Task RestartFeedAsync()
     {
@@ -136,7 +177,7 @@ public partial class App : Application
         {
             var alert = settings.Symbols.FirstOrDefault(s => s.Symbol == price.Symbol)?.Alert;
             if (alert is not null) ticker.SetAlertState(price.Symbol, alert);
-            settingsWindow?.ViewModel.RefreshAlertStates(settings);
+            RefreshAlertWindows();
         }
     }
     private async Task StopFeedAsync()
@@ -151,6 +192,7 @@ public partial class App : Application
     {
         if (exiting) return;
         exiting = true; manager?.SavePosition(); settingsWindow?.Close();
+        foreach (var window in priceAlertWindows.Values.ToArray()) window.Close();
         await feedGate.WaitAsync();
         try { await StopFeedAsync(); }
         finally { feedGate.Release(); }

@@ -11,6 +11,7 @@ public sealed class TickerRowViewModel(string symbol) : ObservableObject
     private TickerPrice? price;
     private bool upperTriggered;
     private bool lowerTriggered;
+    private bool hasConfiguredAlert;
     public string Symbol { get; } = symbol;
     public string Asset => Symbol[..^4];
     public decimal? Price => price?.Price;
@@ -20,10 +21,13 @@ public sealed class TickerRowViewModel(string symbol) : ObservableObject
     public bool IsPositive => price?.ChangePercent24h >= 0;
     public bool HasPrice => price is not null;
     public bool HasTriggeredAlert => upperTriggered || lowerTriggered;
+    public bool HasConfiguredAlert => hasConfiguredAlert;
+    public string AlertButtonText => HasTriggeredAlert ? $"{Asset} {AlertStatusText}" :
+        HasConfiguredAlert ? $"編輯 {Asset} 價格警示" : $"新增 {Asset} 價格警示";
     public string AlertStatusText => "價格提醒：" + string.Join("、", new[]
     {
         upperTriggered ? "上限已提醒" : null, lowerTriggered ? "下限已提醒" : null
-    }.Where(s => s is not null)) + "；可在設定中重設。";
+    }.Where(s => s is not null)) + "；點擊開啟警示視窗重設。";
     public string UpdatedText => price is null ? "等待報價" : "更新於 " + price.UpdatedAt.ToLocalTime().ToString("HH:mm:ss");
 
     public bool Update(TickerPrice value)
@@ -40,7 +44,9 @@ public sealed class TickerRowViewModel(string symbol) : ObservableObject
     {
         upperTriggered = alert.UpperTriggered;
         lowerTriggered = alert.LowerTriggered;
+        hasConfiguredAlert = alert.UpperPrice is not null || alert.LowerPrice is not null;
         Notify(nameof(HasTriggeredAlert)); Notify(nameof(AlertStatusText));
+        Notify(nameof(HasConfiguredAlert)); Notify(nameof(AlertButtonText));
     }
 }
 

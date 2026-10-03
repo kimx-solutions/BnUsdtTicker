@@ -66,6 +66,12 @@ public sealed class WindowTests
                 Render(tickerWindow, "ticker-preview.png");
                 Assert.NotNull(tickerWindow.Icon);
                 Assert.True(tickerWindow.ActualHeight > 100);
+                var alertEntry = Descendants<Button>(tickerWindow).Single(b => b.Tag is "BTCUSDT");
+                var selectedAlertSymbol = "";
+                tickerWindow.PriceAlertRequested += symbol => selectedAlertSymbol = symbol;
+                ((IInvokeProvider)new ButtonAutomationPeer(alertEntry).GetPattern(PatternInterface.Invoke)).Invoke();
+                application.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+                Assert.Equal("BTCUSDT", selectedAlertSymbol);
                 var priceHeader = Descendants<Button>(tickerWindow).Single(b => ReferenceEquals(b.Command, ticker.SortPriceCommand));
                 var invokeSort = (IInvokeProvider)new ButtonAutomationPeer(priceHeader).GetPattern(PatternInterface.Invoke);
                 invokeSort.Invoke();
@@ -83,38 +89,47 @@ public sealed class WindowTests
                 Render(settingsWindow, "settings-preview.png");
                 Assert.NotNull(settingsWindow.Icon);
                 Assert.Equal(settingsVm, settingsWindow.DataContext);
-                var upperInput = settingsWindow.FindName("UpperPriceInput") as TextBox;
-                var lowerInput = settingsWindow.FindName("LowerPriceInput") as TextBox;
+                Assert.Null(settingsWindow.FindName("UpperPriceInput"));
+                var alertVm = new PriceAlertEditorViewModel("BTCUSDT", new());
+                PriceAlertSettings? savedAlert = null;
+                var alertWindow = new PriceAlertWindow(alertVm, (alert, _) =>
+                { savedAlert = alert; return Task.FromResult(true); }) { ShowActivated = false };
+                Render(alertWindow, "price-alert-preview.png");
+                Assert.NotNull(alertWindow.Icon);
+                var upperInput = alertWindow.FindName("UpperPriceInput") as TextBox;
+                var lowerInput = alertWindow.FindName("LowerPriceInput") as TextBox;
                 Assert.NotNull(upperInput);
                 Assert.NotNull(lowerInput);
                 upperInput.SetCurrentValue(TextBox.TextProperty, "invalid");
-                var saveAlertButton = Descendants<Button>(settingsWindow).Single(b => Equals(b.Content, "儲存"));
+                var saveAlertButton = Descendants<Button>(alertWindow).Single(b => Equals(b.Content, "儲存"));
                 ((IInvokeProvider)new ButtonAutomationPeer(saveAlertButton).GetPattern(PatternInterface.Invoke)).Invoke();
                 application.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
-                Assert.True(settingsWindow.IsVisible);
-                Assert.NotEmpty(settingsVm.Error);
-                var errorLabel = settingsWindow.FindName("SettingsErrorText") as TextBlock;
+                Assert.True(alertWindow.IsVisible);
+                Assert.NotEmpty(alertVm.Error);
+                Assert.Null(savedAlert);
+                var errorLabel = alertWindow.FindName("AlertErrorText") as TextBlock;
                 Assert.NotNull(errorLabel);
                 Assert.True(errorLabel.IsVisible);
-                Assert.InRange(errorLabel.TranslatePoint(new Point(0, errorLabel.ActualHeight), settingsWindow).Y, 1, settingsWindow.ActualHeight);
-                settingsVm.Error = "";
+                Assert.InRange(errorLabel.TranslatePoint(new Point(0, errorLabel.ActualHeight), alertWindow).Y, 1, alertWindow.ActualHeight);
+                alertVm.Error = "";
                 upperInput.SetCurrentValue(TextBox.TextProperty, "85000.125");
                 lowerInput.SetCurrentValue(TextBox.TextProperty, "80000");
                 application.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.DataBind);
-                Assert.Equal(85000.125m, settingsVm.CreateSettings().Symbols[0].Alert.UpperPrice);
-                Assert.Equal(80000m, settingsVm.CreateSettings().Symbols[0].Alert.LowerPrice);
-                var resetUpper = Descendants<Button>(settingsWindow).Single(b => Equals(b.Content, "重設上限"));
+                Assert.Equal(85000.125m, alertVm.CreateAlert().UpperPrice);
+                Assert.Equal(80000m, alertVm.CreateAlert().LowerPrice);
+                var resetUpper = Descendants<Button>(alertWindow).Single(b => Equals(b.Content, "重設上限"));
                 ((IInvokeProvider)new ButtonAutomationPeer(resetUpper).GetPattern(PatternInterface.Invoke)).Invoke();
                 application.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
-                Assert.Equal(new AlertResetRequest("BTCUSDT", AlertType.Upper), Assert.Single(settingsVm.GetAlertResets()));
-                Render(settingsWindow, "settings-alerts-preview.png");
+                Assert.Equal(new AlertResetRequest("BTCUSDT", AlertType.Upper), Assert.Single(alertVm.GetAlertResets()));
+                Render(alertWindow, "price-alert-edited-preview.png");
                 var triggeredSettings = new AppSettings();
                 triggeredSettings.Symbols[0].Alert.UpperTriggered = true;
                 ticker.Configure(triggeredSettings);
                 application.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.DataBind);
                 Assert.True(ticker.Prices.Single(p => p.Symbol == "BTCUSDT").HasTriggeredAlert);
                 tickerWindow.UpdateLayout();
-                Assert.Contains(Descendants<TextBlock>(tickerWindow), t => t.Text == "▲ 提醒" && t.IsVisible);
+                var triggeredEntry = Descendants<Button>(tickerWindow).Single(b => b.Tag is "BTCUSDT");
+                Assert.Equal(((SolidColorBrush)application.FindResource("ThemeWarning")).Color, ((SolidColorBrush)triggeredEntry.Foreground).Color);
                 Render(tickerWindow, "ticker-alerts-preview.png");
                 ticker.SetAlertState("BTCUSDT", new());
                 Assert.False(ticker.Prices.Single(p => p.Symbol == "BTCUSDT").HasTriggeredAlert);
@@ -125,7 +140,7 @@ public sealed class WindowTests
                 tickerWindow.ThemeRequested += () =>
                 {
                     theme = theme == ColorTheme.Dark ? ColorTheme.Light : ColorTheme.Dark;
-                    ThemeService.Apply(theme); ticker.SetTheme(theme); settingsWindow.RefreshTheme(); switches++;
+                    ThemeService.Apply(theme); ticker.SetTheme(theme); settingsWindow.RefreshTheme(); alertWindow.RefreshTheme(); switches++;
                 };
                 var toggleTheme = (IInvokeProvider)new ButtonAutomationPeer(themeButton).GetPattern(PatternInterface.Invoke);
                 var darkTickerText = tickerWindow.Foreground;
@@ -142,6 +157,7 @@ public sealed class WindowTests
                 Assert.NotEqual(darkListText, symbolList.Foreground);
                 Render(tickerWindow, "ticker-light-preview.png");
                 Render(settingsWindow, "settings-light-preview.png");
+                Render(alertWindow, "price-alert-light-preview.png");
                 using (var lightTray = new TrayIconService(application.Dispatcher, () => { }, () => { }, _ => { }, () => { }))
                     RenderTrayMenu(lightTray, "tray-menu-light-preview.png");
                 toggleTheme.Invoke();
@@ -157,6 +173,14 @@ public sealed class WindowTests
                 Assert.True(priceScroll.ViewportHeight < priceScroll.ExtentHeight, "Long watchlists must scroll inside small work areas");
                 Assert.True(tickerWindow.ActualHeight <= 300);
                 tickerWindow.Close();
+                alertWindow.Height = 340; alertWindow.Width = 360;
+                alertWindow.UpdateLayout();
+                Assert.InRange(saveAlertButton.TranslatePoint(new Point(0, saveAlertButton.ActualHeight), alertWindow).Y, 1, alertWindow.ActualHeight);
+                Render(alertWindow, "price-alert-small-preview.png");
+                ((IInvokeProvider)new ButtonAutomationPeer(saveAlertButton).GetPattern(PatternInterface.Invoke)).Invoke();
+                application.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+                Assert.False(alertWindow.IsVisible);
+                Assert.Equal(85000.125m, savedAlert!.UpperPrice);
                 var symbolInput = Descendants<TextBox>(settingsWindow).Single(t => t.DataContext is SettingsViewModel);
                 settingsWindow.Activate();
                 Assert.True(symbolInput.Focus());
@@ -243,6 +267,32 @@ public sealed class WindowTests
             Receive(new("BTCUSDT", 87000m, 1m, now.AddSeconds(2)));
             Assert.Equal(2, sent.Count);
             Assert.Equal(87000m, history.Load()[1].TriggeredPrice);
+            var open = typeof(App).GetMethod("OpenPriceAlert", fields)!;
+            var windows = (Dictionary<string, PriceAlertWindow>)typeof(App).GetField("priceAlertWindows", fields)!.GetValue(application)!;
+            open.Invoke(application, ["BTCUSDT"]);
+            var editor = windows["BTCUSDT"];
+            Assert.True(editor.IsVisible);
+            open.Invoke(application, ["BTCUSDT"]);
+            Assert.Same(editor, Assert.Single(windows).Value);
+            open.Invoke(application, ["ETHUSDT"]);
+            Assert.Equal(2, windows.Count);
+            editor.ViewModel.UpperPriceText = "95000";
+            editor.ViewModel.ResetUpperCommand.Execute(null);
+            var save = Descendants<Button>(editor).Single(b => Equals(b.Content, "儲存"));
+            ((IInvokeProvider)new ButtonAutomationPeer(save).GetPattern(PatternInterface.Invoke)).Invoke();
+            application.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+            Assert.False(editor.IsVisible);
+            Assert.Equal(95000m, store.Load().Symbols[0].Alert.UpperPrice);
+            Assert.False(settings.Symbols[0].Alert.UpperTriggered);
+            Assert.True(ticker.Prices[0].HasConfiguredAlert);
+            Assert.False(ticker.Prices[0].HasTriggeredAlert);
+            var eth = windows["ETHUSDT"];
+            eth.ViewModel.LowerPriceText = "1000";
+            var cancel = Descendants<Button>(eth).Single(b => Equals(b.Content, "取消"));
+            ((IInvokeProvider)new ButtonAutomationPeer(cancel).GetPattern(PatternInterface.Invoke)).Invoke();
+            application.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+            Assert.Empty(windows);
+            Assert.Null(store.Load().Symbols.Single(s => s.Symbol == "ETHUSDT").Alert.LowerPrice);
         }
         finally { if (Directory.Exists(directory)) Directory.Delete(directory, true); }
     }
@@ -285,7 +335,8 @@ public sealed class WindowTests
         public bool Entered { get; private set; }
         public Task CheckAsync(string symbol, decimal currentPrice) { Entered = true; return completion.Task; }
         public Task ResetAsync(string symbol, AlertType? type = null) => Task.CompletedTask;
-        public Task ApplySettingsAsync(AppSettings updated, IReadOnlyList<AlertResetRequest> resets) => Task.CompletedTask;
+        public Task ApplySettingsAsync(AppSettings updated, IReadOnlyList<AlertResetRequest> resets, bool preserveAlerts = false) => Task.CompletedTask;
+        public Task SaveAlertAsync(string symbol, PriceAlertSettings updated, IReadOnlyList<AlertResetRequest> resets) => Task.CompletedTask;
         public void Release() => completion.SetResult();
     }
 
