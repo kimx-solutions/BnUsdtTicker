@@ -1,9 +1,7 @@
-using System.Runtime.InteropServices;
+using BinanceTicker.Services;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
-using System.Windows.Interop;
-using System.Windows.Media;
 using BinanceTicker.Core.Models;
 using BinanceTicker.Core.ViewModels;
 
@@ -34,25 +32,7 @@ public partial class SettingsWindow : Window
         base.OnSourceInitialized(e);
         RefreshTheme();
     }
-    public void RefreshTheme()
-    {
-        if (!OperatingSystem.IsWindowsVersionAtLeast(10, 0, 22000)) return;
-        var handle = new WindowInteropHelper(this).Handle;
-        if (handle == IntPtr.Zero) return;
-        var darkMode = ((SolidColorBrush)FindResource("SettingsBackground")).Color.R < 128 ? 1 : 0;
-        _ = DwmSetWindowAttribute(handle, 20, ref darkMode, sizeof(int));
-        SetColor(34, "SettingsBorder");
-        SetColor(35, "SettingsBackground");
-        SetColor(36, "SettingsText");
-        void SetColor(int attribute, string resourceKey)
-        {
-            var color = ((SolidColorBrush)FindResource(resourceKey)).Color;
-            var colorRef = color.R | (color.G << 8) | (color.B << 16);
-            _ = DwmSetWindowAttribute(handle, attribute, ref colorRef, sizeof(int));
-        }
-    }
-    [DllImport("dwmapi.dll")]
-    private static extern int DwmSetWindowAttribute(IntPtr handle, int attribute, ref int value, int size);
+    public void RefreshTheme() => ThemeService.RefreshWindowFrame(this);
 
     private void SelectSymbolRow(object sender, MouseButtonEventArgs e)
     {
@@ -68,6 +48,7 @@ public partial class SettingsWindow : Window
         if (saving || !ViewModel.CanSave) return;
         saving = true; IsEnabled = false;
         try { if (await save(ViewModel.CreateSettings())) Close(); }
+        catch (ArgumentException ex) { ViewModel.Error = ex.Message; }
         finally { saving = false; IsEnabled = true; }
     }
 }

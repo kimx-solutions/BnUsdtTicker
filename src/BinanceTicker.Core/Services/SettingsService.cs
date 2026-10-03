@@ -1,18 +1,10 @@
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using BinanceTicker.Core.Models;
 
 namespace BinanceTicker.Core.Services;
 
 public sealed class SettingsService
 {
-    private static readonly JsonSerializerOptions Options = new()
-    {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        PropertyNameCaseInsensitive = true,
-        WriteIndented = true,
-        Converters = { new JsonStringEnumConverter(allowIntegerValues: false) }
-    };
     public string FilePath { get; }
     public string? LoadWarning { get; private set; }
 
@@ -21,11 +13,16 @@ public sealed class SettingsService
 
     public AppSettings Load()
     {
+        lock (AtomicJsonFile.Gate(FilePath)) return LoadCore();
+    }
+
+    private AppSettings LoadCore()
+    {
         LoadWarning = null;
         if (!File.Exists(FilePath)) return new();
         try
         {
-            var settings = JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(FilePath), Options)
+            var settings = JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(FilePath), AtomicJsonFile.Options)
                 ?? throw new JsonException("Empty settings.");
             Normalize(settings);
             return settings;
@@ -42,16 +39,12 @@ public sealed class SettingsService
 
     public void Save(AppSettings settings)
     {
-        var copy = settings.Copy();
-        Normalize(copy);
-        Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(FilePath))!);
-        var tempPath = FilePath + "." + Guid.NewGuid().ToString("N") + ".tmp";
-        try
+        lock (AtomicJsonFile.Gate(FilePath))
         {
-            File.WriteAllText(tempPath, JsonSerializer.Serialize(copy, Options));
-            File.Move(tempPath, FilePath, true);
+            var copy = settings.Copy();
+            Normalize(copy);
+            AtomicJsonFile.Write(FilePath, copy);
         }
-        finally { if (File.Exists(tempPath)) File.Delete(tempPath); }
     }
 
     private static void Normalize(AppSettings settings)
@@ -66,6 +59,9 @@ public sealed class SettingsService
         settings.Symbols = settings.Symbols.OrderBy(s => s.Order).Where(s =>
         {
             s.Symbol = SymbolNormalizer.Normalize(s.Symbol);
+            s.Alert ??= new();
+            if (s.Alert.UpperPrice is <= 0 || s.Alert.LowerPrice is <= 0)
+                throw new JsonException("Alert prices must be positive.");
             return symbols.Add(s.Symbol);
         }).ToList();
         for (var i = 0; i < settings.Symbols.Count; i++) settings.Symbols[i].Order = i + 1;

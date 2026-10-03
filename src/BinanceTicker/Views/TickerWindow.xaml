@@ -8,6 +8,20 @@
         ResizeMode="NoResize" ShowInTaskbar="True" Icon="/BinanceTicker;component/Assets/app.ico" FontFamily="Segoe UI, Microsoft JhengHei"
         Foreground="{DynamicResource TickerText}" WindowStartupLocation="Manual">
     <Window.Resources>
+        <Style x:Key="AlertButton" TargetType="Button">
+            <Setter Property="Foreground" Value="{DynamicResource TickerMuted}" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
+                <Border x:Name="Frame" Width="18" Height="20" Background="Transparent" CornerRadius="4">
+                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Border>
+                <ControlTemplate.Triggers>
+                    <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Frame" Property="Background" Value="{DynamicResource TickerHover}" /></Trigger>
+                    <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Frame" Property="Background" Value="{DynamicResource TickerHover}" /></Trigger>
+                </ControlTemplate.Triggers>
+            </ControlTemplate></Setter.Value></Setter>
+        </Style>
         <Style x:Key="SortHeader" TargetType="Button">
             <Setter Property="AutomationProperties.HelpText" Value="{Binding SortDescription}" />
             <Setter Property="Foreground" Value="{DynamicResource TickerMuted}" />
@@ -53,9 +67,9 @@
             </ControlTemplate></Setter.Value></Setter>
         </Style>
     </Window.Resources>
-    <Border Background="{DynamicResource TickerBackground}" BorderBrush="{DynamicResource TickerBorder}" BorderThickness="1" CornerRadius="12" Padding="18,12">
+    <Border Background="{DynamicResource TickerBackground}" BorderBrush="{DynamicResource TickerBorder}" BorderThickness="1" CornerRadius="12" Padding="10,12,18,12">
         <DockPanel LastChildFill="True">
-            <Grid DockPanel.Dock="Top" Margin="0,0,0,12">
+            <Grid DockPanel.Dock="Top" Margin="8,0,0,12">
                 <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                     <TextBlock Text="●" Foreground="{DynamicResource ThemeWarning}" Margin="0,0,8,0" />
@@ -125,18 +139,18 @@
             </StackPanel>
             <DockPanel>
                 <Grid DockPanel.Dock="Top" Margin="0,0,0,2">
-                    <Grid.ColumnDefinitions><ColumnDefinition Width="80" /><ColumnDefinition /><ColumnDefinition Width="85" /></Grid.ColumnDefinitions>
-                    <Button Content="{Binding SymbolSortHeader}" Command="{Binding SortSymbolCommand}" HorizontalContentAlignment="Left" ToolTip="依幣種排序；再次點擊切換升冪／降冪" AutomationProperties.Name="幣種排序">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="20" /><ColumnDefinition Width="68" /><ColumnDefinition /><ColumnDefinition Width="85" /></Grid.ColumnDefinitions>
+                    <Button Grid.Column="1" Content="{Binding SymbolSortHeader}" Command="{Binding SortSymbolCommand}" HorizontalContentAlignment="Left" ToolTip="依幣種排序；再次點擊切換升冪／降冪" AutomationProperties.Name="幣種排序">
                         <Button.Style><Style TargetType="Button" BasedOn="{StaticResource SortHeader}"><Style.Triggers>
                             <DataTrigger Binding="{Binding SortColumn}" Value="{x:Static vm:TickerSortColumn.Symbol}"><Setter Property="Foreground" Value="{DynamicResource SettingsAccent}" /></DataTrigger>
                         </Style.Triggers></Style></Button.Style>
                     </Button>
-                    <Button Grid.Column="1" Content="{Binding PriceSortHeader}" Command="{Binding SortPriceCommand}" HorizontalContentAlignment="Right" ToolTip="依價格排序；再次點擊切換升冪／降冪" AutomationProperties.Name="價格排序">
+                    <Button Grid.Column="2" Content="{Binding PriceSortHeader}" Command="{Binding SortPriceCommand}" HorizontalContentAlignment="Right" ToolTip="依價格排序；再次點擊切換升冪／降冪" AutomationProperties.Name="價格排序">
                         <Button.Style><Style TargetType="Button" BasedOn="{StaticResource SortHeader}"><Style.Triggers>
                             <DataTrigger Binding="{Binding SortColumn}" Value="{x:Static vm:TickerSortColumn.Price}"><Setter Property="Foreground" Value="{DynamicResource SettingsAccent}" /></DataTrigger>
                         </Style.Triggers></Style></Button.Style>
                     </Button>
-                    <Button Grid.Column="2" Content="{Binding ChangeSortHeader}" Command="{Binding SortChangeCommand}" HorizontalContentAlignment="Right" ToolTip="依 24 小時漲跌幅排序；再次點擊切換升冪／降冪" AutomationProperties.Name="24 小時漲跌幅排序" Visibility="{Binding ShowChangePercent, Converter={StaticResource BoolVisibility}}">
+                    <Button Grid.Column="3" Content="{Binding ChangeSortHeader}" Command="{Binding SortChangeCommand}" HorizontalContentAlignment="Right" ToolTip="依 24 小時漲跌幅排序；再次點擊切換升冪／降冪" AutomationProperties.Name="24 小時漲跌幅排序" Visibility="{Binding ShowChangePercent, Converter={StaticResource BoolVisibility}}">
                         <Button.Style><Style TargetType="Button" BasedOn="{StaticResource SortHeader}"><Style.Triggers>
                             <DataTrigger Binding="{Binding SortColumn}" Value="{x:Static vm:TickerSortColumn.ChangePercent}"><Setter Property="Foreground" Value="{DynamicResource SettingsAccent}" /></DataTrigger>
                         </Style.Triggers></Style></Button.Style>
@@ -148,10 +162,23 @@
                         <ItemsControl.ItemTemplate><DataTemplate>
                             <Border Style="{StaticResource TickerRow}" BorderBrush="{DynamicResource TickerSeparator}" BorderThickness="0,0,0,1" ToolTip="{Binding UpdatedText}">
                                 <Grid>
-                                    <Grid.ColumnDefinitions><ColumnDefinition Width="80" /><ColumnDefinition /><ColumnDefinition Width="85" /></Grid.ColumnDefinitions>
-                                    <TextBlock Text="{Binding Asset}" FontWeight="SemiBold" FontSize="14" VerticalAlignment="Center" />
-                                    <TextBlock Grid.Column="1" Text="{Binding PriceText}" FontFamily="Consolas" FontSize="15" HorizontalAlignment="Right" VerticalAlignment="Center" />
-                                    <TextBlock Grid.Column="2" Text="{Binding ChangeText}" FontFamily="Consolas" FontSize="12" HorizontalAlignment="Right" VerticalAlignment="Center" Visibility="{Binding DataContext.ShowChangePercent, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolVisibility}}">
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="20" /><ColumnDefinition Width="68" /><ColumnDefinition /><ColumnDefinition Width="85" /></Grid.ColumnDefinitions>
+                                    <Button Tag="{Binding Symbol}" Click="PriceAlertClicked" ToolTip="{Binding AlertButtonText}" AutomationProperties.Name="{Binding AlertButtonText}">
+                                        <Button.Style><Style TargetType="Button" BasedOn="{StaticResource AlertButton}"><Style.Triggers>
+                                            <DataTrigger Binding="{Binding HasConfiguredAlert}" Value="True"><Setter Property="Foreground" Value="{DynamicResource SettingsAccent}" /></DataTrigger>
+                                            <DataTrigger Binding="{Binding HasTriggeredAlert}" Value="True"><Setter Property="Foreground" Value="{DynamicResource ThemeWarning}" /></DataTrigger>
+                                        </Style.Triggers></Style></Button.Style>
+                                        <Viewbox Width="12" Height="14">
+                                            <Canvas Width="24" Height="24">
+                                                <Path Data="M6,8 A6,6 0 0 1 18,8 L18,14 L20,17 L4,17 L6,14 Z M10,20 Q12,22 14,20" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1.8" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+                                            </Canvas>
+                                        </Viewbox>
+                                    </Button>
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding Asset}" FontWeight="SemiBold" FontSize="14" />
+                                    </StackPanel>
+                                    <TextBlock Grid.Column="2" Text="{Binding PriceText}" FontFamily="Consolas" FontSize="15" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="3" Text="{Binding ChangeText}" FontFamily="Consolas" FontSize="12" HorizontalAlignment="Right" VerticalAlignment="Center" Visibility="{Binding DataContext.ShowChangePercent, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolVisibility}}">
                                         <TextBlock.Style><Style TargetType="TextBlock">
                                             <Setter Property="Foreground" Value="{DynamicResource ThemeNegative}" />
                                             <Style.Triggers>

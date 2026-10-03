@@ -8,5 +8,6 @@ public sealed class SymbolSetting : ObservableObject
     public string Symbol { get; set; } = "";
     public bool Enabled { get => enabled; set => Set(ref enabled, value); }
     public int Order { get; set; }
-    public SymbolSetting Copy() => new() { Symbol = Symbol, Enabled = Enabled, Order = Order };
+    public PriceAlertSettings Alert { get; set; } = new();
+    public SymbolSetting Copy() => new() { Symbol = Symbol, Enabled = Enabled, Order = Order, Alert = Alert?.Copy() ?? new() };
 }

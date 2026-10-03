@@ -51,6 +51,7 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
         RemoveCommand = new(Remove, () => SelectedSymbol is not null);
         MoveUpCommand = new(() => Move(-1), () => SelectedSymbol is not null && Symbols.IndexOf(SelectedSymbol) > 0);
         MoveDownCommand = new(() => Move(1), () => SelectedSymbol is not null && Symbols.IndexOf(SelectedSymbol) < Symbols.Count - 1);
+        SelectedSymbol = Symbols.FirstOrDefault();
     }
 
     public async Task AddAsync()
@@ -82,7 +83,10 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
         settings.Mode = Mode; settings.ShowOnStartup = ShowOnStartup;
         settings.Window.Opacity = Opacity;
         settings.Ui.ShowChangePercent = ShowChangePercent; settings.Ui.CompactMode = CompactMode;
-        settings.Symbols = Symbols.Select((s, i) => new SymbolSetting { Symbol = s.Symbol, Enabled = s.Enabled, Order = i + 1 }).ToList();
+        settings.Symbols = Symbols.Select((s, i) =>
+        {
+            var copy = s.Copy(); copy.Order = i + 1; return copy;
+        }).ToList();
         return settings;
     }
 
