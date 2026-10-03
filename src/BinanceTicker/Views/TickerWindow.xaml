@@ -6,11 +6,11 @@
         Title="Binance USDT Ticker" Width="390" SizeToContent="Height" MaxHeight="640"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         ResizeMode="NoResize" ShowInTaskbar="True" Icon="/BinanceTicker;component/Assets/app.ico" FontFamily="Segoe UI, Microsoft JhengHei"
-        Foreground="#F3F4F6" WindowStartupLocation="Manual">
+        Foreground="{DynamicResource TickerText}" WindowStartupLocation="Manual">
     <Window.Resources>
         <Style x:Key="SortHeader" TargetType="Button">
             <Setter Property="AutomationProperties.HelpText" Value="{Binding SortDescription}" />
-            <Setter Property="Foreground" Value="#8B95A5" />
+            <Setter Property="Foreground" Value="{DynamicResource TickerMuted}" />
             <Setter Property="FontSize" Value="10" />
             <Setter Property="Padding" Value="0,4" />
             <Setter Property="Margin" Value="0" />
@@ -21,13 +21,13 @@
                     <ContentPresenter Margin="{TemplateBinding Padding}" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="Center" />
                 </Border>
                 <ControlTemplate.Triggers>
-                    <Trigger Property="IsMouseOver" Value="True"><Setter Property="Foreground" Value="#36D9F5" /><Setter TargetName="Frame" Property="Background" Value="#12384B" /></Trigger>
-                    <Trigger Property="IsKeyboardFocused" Value="True"><Setter Property="Foreground" Value="#36D9F5" /><Setter TargetName="Frame" Property="Background" Value="#12384B" /></Trigger>
+                    <Trigger Property="IsMouseOver" Value="True"><Setter Property="Foreground" Value="{DynamicResource SettingsAccent}" /><Setter TargetName="Frame" Property="Background" Value="{DynamicResource TickerHover}" /></Trigger>
+                    <Trigger Property="IsKeyboardFocused" Value="True"><Setter Property="Foreground" Value="{DynamicResource SettingsAccent}" /><Setter TargetName="Frame" Property="Background" Value="{DynamicResource TickerHover}" /></Trigger>
                 </ControlTemplate.Triggers>
             </ControlTemplate></Setter.Value></Setter>
         </Style>
         <Style x:Key="HeaderButton" TargetType="Button">
-            <Setter Property="Background" Value="Transparent" /><Setter Property="Foreground" Value="#A8B0BD" />
+            <Setter Property="Background" Value="Transparent" /><Setter Property="Foreground" Value="{DynamicResource TickerSecondary}" />
             <Setter Property="BorderThickness" Value="0" /><Setter Property="Padding" Value="6,4" /><Setter Property="Cursor" Value="Hand" />
         </Style>
         <Style x:Key="TickerRow" TargetType="Border">
@@ -38,13 +38,27 @@
                 </DataTrigger>
             </Style.Triggers>
         </Style>
+        <Style x:Key="ThemeButton" TargetType="Button">
+            <Setter Property="Foreground" Value="{DynamicResource TickerMuted}" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Margin" Value="0,0,6,0" />
+            <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
+                <Border x:Name="Frame" Width="28" Height="28" Background="Transparent" CornerRadius="6">
+                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Border>
+                <ControlTemplate.Triggers>
+                    <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Frame" Property="Background" Value="{DynamicResource TickerHover}" /><Setter Property="Foreground" Value="{DynamicResource SettingsAccent}" /></Trigger>
+                    <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Frame" Property="Background" Value="{DynamicResource TickerHover}" /><Setter Property="Foreground" Value="{DynamicResource SettingsAccent}" /></Trigger>
+                </ControlTemplate.Triggers>
+            </ControlTemplate></Setter.Value></Setter>
+        </Style>
     </Window.Resources>
-    <Border Background="#171B22" BorderBrush="#353B46" BorderThickness="1" CornerRadius="12" Padding="18,12">
+    <Border Background="{DynamicResource TickerBackground}" BorderBrush="{DynamicResource TickerBorder}" BorderThickness="1" CornerRadius="12" Padding="18,12">
         <DockPanel LastChildFill="True">
             <Grid DockPanel.Dock="Top" Margin="0,0,0,12">
                 <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <TextBlock Text="●" Foreground="#F0B90B" Margin="0,0,8,0" />
+                    <TextBlock Text="●" Foreground="{DynamicResource ThemeWarning}" Margin="0,0,8,0" />
                     <TextBlock Text="USDT TICKER" FontWeight="SemiBold" FontSize="12" />
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal">
@@ -53,10 +67,25 @@
                 </StackPanel>
             </Grid>
             <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
+                <Button x:Name="ThemeToggleButton" Style="{StaticResource ThemeButton}" Click="ThemeClicked"
+                        ToolTip="{Binding ThemeToggleText}" AutomationProperties.Name="{Binding ThemeToggleText}">
+                    <Viewbox Width="16" Height="16">
+                        <Canvas Width="24" Height="24">
+                            <Path Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1.8" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round">
+                                <Path.Style><Style TargetType="Path">
+                                    <Setter Property="Data" Value="M12,7 A5,5 0 1 1 12,17 A5,5 0 1 1 12,7 M12,1 L12,3 M12,21 L12,23 M1,12 L3,12 M21,12 L23,12 M4,4 L5.5,5.5 M18.5,18.5 L20,20 M4,20 L5.5,18.5 M18.5,5.5 L20,4" />
+                                    <Style.Triggers><DataTrigger Binding="{Binding IsLightTheme}" Value="True">
+                                        <Setter Property="Data" Value="M20,15 A9,9 0 1 1 9,4 A7,7 0 0 0 20,15 Z" />
+                                    </DataTrigger></Style.Triggers>
+                                </Style></Path.Style>
+                            </Path>
+                        </Canvas>
+                    </Viewbox>
+                </Button>
                 <Border Padding="4" Background="Transparent" ToolTip="{Binding ModeText}" AutomationProperties.Name="{Binding ModeText}">
                     <Viewbox Width="14" Height="14">
                         <Canvas Width="24" Height="24">
-                            <Path Stroke="#8B95A5" StrokeThickness="1.8" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round">
+                            <Path Stroke="{DynamicResource TickerMuted}" StrokeThickness="1.8" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round">
                                 <Path.Style><Style TargetType="Path">
                                     <Setter Property="Data" Value="M7,4 L20,4 L20,17 L7,17 Z M4,8 L4,20 L16,20" />
                                     <Style.Triggers>
@@ -75,17 +104,17 @@
                             <Path StrokeThickness="1.8" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round">
                                 <Path.Style><Style TargetType="Path">
                                     <Setter Property="Data" Value="M3,8 Q12,-1 21,8 M6,12 Q12,6 18,12 M9,16 Q12,13 15,16 M12,20 L12,20.1" />
-                                    <Setter Property="Stroke" Value="#F0B90B" />
+                                    <Setter Property="Stroke" Value="{DynamicResource ThemeWarning}" />
                                     <Style.Triggers>
                                         <DataTrigger Binding="{Binding Status}" Value="{x:Static models:ConnectionStatus.Connected}">
-                                            <Setter Property="Stroke" Value="#54CBA2" />
+                                            <Setter Property="Stroke" Value="{DynamicResource ThemePositive}" />
                                         </DataTrigger>
                                         <DataTrigger Binding="{Binding Status}" Value="{x:Static models:ConnectionStatus.Disconnected}">
-                                            <Setter Property="Stroke" Value="#F07883" />
+                                            <Setter Property="Stroke" Value="{DynamicResource ThemeNegative}" />
                                             <Setter Property="Data" Value="M3,8 Q12,-1 21,8 M6,12 Q12,6 18,12 M12,20 L12,20.1 M3,3 L21,21" />
                                         </DataTrigger>
                                         <DataTrigger Binding="{Binding IsEmpty}" Value="True">
-                                            <Setter Property="Stroke" Value="#8B95A5" />
+                                            <Setter Property="Stroke" Value="{DynamicResource TickerMuted}" />
                                         </DataTrigger>
                                     </Style.Triggers>
                                 </Style></Path.Style>
@@ -99,35 +128,35 @@
                     <Grid.ColumnDefinitions><ColumnDefinition Width="80" /><ColumnDefinition /><ColumnDefinition Width="85" /></Grid.ColumnDefinitions>
                     <Button Content="{Binding SymbolSortHeader}" Command="{Binding SortSymbolCommand}" HorizontalContentAlignment="Left" ToolTip="依幣種排序；再次點擊切換升冪／降冪" AutomationProperties.Name="幣種排序">
                         <Button.Style><Style TargetType="Button" BasedOn="{StaticResource SortHeader}"><Style.Triggers>
-                            <DataTrigger Binding="{Binding SortColumn}" Value="{x:Static vm:TickerSortColumn.Symbol}"><Setter Property="Foreground" Value="#36D9F5" /></DataTrigger>
+                            <DataTrigger Binding="{Binding SortColumn}" Value="{x:Static vm:TickerSortColumn.Symbol}"><Setter Property="Foreground" Value="{DynamicResource SettingsAccent}" /></DataTrigger>
                         </Style.Triggers></Style></Button.Style>
                     </Button>
                     <Button Grid.Column="1" Content="{Binding PriceSortHeader}" Command="{Binding SortPriceCommand}" HorizontalContentAlignment="Right" ToolTip="依價格排序；再次點擊切換升冪／降冪" AutomationProperties.Name="價格排序">
                         <Button.Style><Style TargetType="Button" BasedOn="{StaticResource SortHeader}"><Style.Triggers>
-                            <DataTrigger Binding="{Binding SortColumn}" Value="{x:Static vm:TickerSortColumn.Price}"><Setter Property="Foreground" Value="#36D9F5" /></DataTrigger>
+                            <DataTrigger Binding="{Binding SortColumn}" Value="{x:Static vm:TickerSortColumn.Price}"><Setter Property="Foreground" Value="{DynamicResource SettingsAccent}" /></DataTrigger>
                         </Style.Triggers></Style></Button.Style>
                     </Button>
                     <Button Grid.Column="2" Content="{Binding ChangeSortHeader}" Command="{Binding SortChangeCommand}" HorizontalContentAlignment="Right" ToolTip="依 24 小時漲跌幅排序；再次點擊切換升冪／降冪" AutomationProperties.Name="24 小時漲跌幅排序" Visibility="{Binding ShowChangePercent, Converter={StaticResource BoolVisibility}}">
                         <Button.Style><Style TargetType="Button" BasedOn="{StaticResource SortHeader}"><Style.Triggers>
-                            <DataTrigger Binding="{Binding SortColumn}" Value="{x:Static vm:TickerSortColumn.ChangePercent}"><Setter Property="Foreground" Value="#36D9F5" /></DataTrigger>
+                            <DataTrigger Binding="{Binding SortColumn}" Value="{x:Static vm:TickerSortColumn.ChangePercent}"><Setter Property="Foreground" Value="{DynamicResource SettingsAccent}" /></DataTrigger>
                         </Style.Triggers></Style></Button.Style>
                     </Button>
                 </Grid>
-                <TextBlock DockPanel.Dock="Top" Text="尚未啟用幣種，請開啟設定新增。" Margin="0,20" Foreground="#A8B0BD" Visibility="{Binding IsEmpty, Converter={StaticResource BoolVisibility}}" />
+                <TextBlock DockPanel.Dock="Top" Text="尚未啟用幣種，請開啟設定新增。" Margin="0,20" Foreground="{DynamicResource TickerSecondary}" Visibility="{Binding IsEmpty, Converter={StaticResource BoolVisibility}}" />
                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" MaxHeight="480">
                     <ItemsControl ItemsSource="{Binding Prices}">
                         <ItemsControl.ItemTemplate><DataTemplate>
-                            <Border Style="{StaticResource TickerRow}" BorderBrush="#282E38" BorderThickness="0,0,0,1" ToolTip="{Binding UpdatedText}">
+                            <Border Style="{StaticResource TickerRow}" BorderBrush="{DynamicResource TickerSeparator}" BorderThickness="0,0,0,1" ToolTip="{Binding UpdatedText}">
                                 <Grid>
                                     <Grid.ColumnDefinitions><ColumnDefinition Width="80" /><ColumnDefinition /><ColumnDefinition Width="85" /></Grid.ColumnDefinitions>
                                     <TextBlock Text="{Binding Asset}" FontWeight="SemiBold" FontSize="14" VerticalAlignment="Center" />
                                     <TextBlock Grid.Column="1" Text="{Binding PriceText}" FontFamily="Consolas" FontSize="15" HorizontalAlignment="Right" VerticalAlignment="Center" />
                                     <TextBlock Grid.Column="2" Text="{Binding ChangeText}" FontFamily="Consolas" FontSize="12" HorizontalAlignment="Right" VerticalAlignment="Center" Visibility="{Binding DataContext.ShowChangePercent, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolVisibility}}">
                                         <TextBlock.Style><Style TargetType="TextBlock">
-                                            <Setter Property="Foreground" Value="#F07883" />
+                                            <Setter Property="Foreground" Value="{DynamicResource ThemeNegative}" />
                                             <Style.Triggers>
-                                                <DataTrigger Binding="{Binding IsPositive}" Value="True"><Setter Property="Foreground" Value="#54CBA2" /></DataTrigger>
-                                                <DataTrigger Binding="{Binding HasPrice}" Value="False"><Setter Property="Foreground" Value="#8B95A5" /></DataTrigger>
+                                                <DataTrigger Binding="{Binding IsPositive}" Value="True"><Setter Property="Foreground" Value="{DynamicResource ThemePositive}" /></DataTrigger>
+                                                <DataTrigger Binding="{Binding HasPrice}" Value="False"><Setter Property="Foreground" Value="{DynamicResource TickerMuted}" /></DataTrigger>
                                             </Style.Triggers>
                                         </Style></TextBlock.Style>
                                     </TextBlock>

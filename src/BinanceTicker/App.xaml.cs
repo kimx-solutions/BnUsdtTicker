@@ -30,10 +30,12 @@ public partial class App : Application
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         { MessageBox.Show("無法讀取設定，將使用預設值。\n" + ex.Message, "Binance Ticker"); }
         binance = new(http);
+        ThemeService.Apply(settings.Ui.Theme);
         ticker.Configure(settings);
         var window = new TickerWindow { DataContext = ticker };
         manager = new(window, settings, SaveSettings);
         window.SettingsRequested += OpenSettings;
+        window.ThemeRequested += ToggleTheme;
         tray = new(Dispatcher, manager.Show, OpenSettings, ChangeMode, () => _ = ExitAsync());
         tray.SetMode(settings.Mode);
         if (settings.ShowOnStartup) manager.Show();
@@ -51,6 +53,16 @@ public partial class App : Application
         if (exiting) return;
         manager!.SetMode(mode); ticker.SetMode(mode); tray!.SetMode(mode); SaveSettings(); manager.Show();
     }
+    private void ToggleTheme()
+    {
+        if (exiting) return;
+        settings.Ui.Theme = settings.Ui.Theme == ColorTheme.Dark ? ColorTheme.Light : ColorTheme.Dark;
+        ThemeService.Apply(settings.Ui.Theme);
+        ticker.SetTheme(settings.Ui.Theme);
+        settingsWindow?.RefreshTheme();
+        tray?.RefreshTheme();
+        SaveSettings();
+    }
     private void OpenSettings()
     {
         if (exiting) return;
@@ -63,6 +75,8 @@ public partial class App : Application
     {
         if (exiting) return false;
         updated.Window.Left = settings.Window.Left; updated.Window.Top = settings.Window.Top;
+        // A settings window opened before a theme switch must preserve the latest theme.
+        updated.Ui.Theme = settings.Ui.Theme;
         try { settingsService.Save(updated); }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         { if (settingsWindow is not null) settingsWindow.ViewModel.Error = "儲存失敗：" + ex.Message; return false; }

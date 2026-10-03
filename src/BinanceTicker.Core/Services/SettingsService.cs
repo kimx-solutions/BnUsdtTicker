@@ -57,7 +57,7 @@ public sealed class SettingsService
     private static void Normalize(AppSettings settings)
     {
         if (settings.Window is null || settings.Ui is null || settings.Symbols is null ||
-            settings.Symbols.Any(s => s is null) || !Enum.IsDefined(settings.Mode))
+            settings.Symbols.Any(s => s is null) || !Enum.IsDefined(settings.Mode) || !Enum.IsDefined(settings.Ui.Theme))
             throw new JsonException("Invalid settings structure.");
         settings.Window.Left = double.IsFinite(settings.Window.Left) ? settings.Window.Left : 100;
         settings.Window.Top = double.IsFinite(settings.Window.Top) ? settings.Window.Top : 100;

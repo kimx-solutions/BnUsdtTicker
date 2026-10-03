@@ -1,6 +1,7 @@
 namespace BinanceTicker.Core.Models;
 
 public enum DisplayMode { Fix, Float }
+public enum ColorTheme { Dark, Light }
 public enum ConnectionStatus { Connecting, Connected, Disconnected }
 
 public sealed class AppSettings
@@ -20,7 +21,7 @@ public sealed class AppSettings
     {
         Mode = Mode, ShowOnStartup = ShowOnStartup,
         Window = new() { Left = Window.Left, Top = Window.Top, Opacity = Window.Opacity },
-        Ui = new() { CompactMode = Ui.CompactMode, ShowChangePercent = Ui.ShowChangePercent },
+        Ui = new() { CompactMode = Ui.CompactMode, ShowChangePercent = Ui.ShowChangePercent, Theme = Ui.Theme },
         Symbols = Symbols.Select(s => s.Copy()).ToList()
     };
 }
@@ -34,6 +35,7 @@ public sealed class WindowSettings
 
 public sealed class UiSettings
 {
+    public ColorTheme Theme { get; set; } = ColorTheme.Dark;
     public bool ShowChangePercent { get; set; } = true;
     public bool CompactMode { get; set; } = true;
 }

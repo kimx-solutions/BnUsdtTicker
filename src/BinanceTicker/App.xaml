@@ -3,11 +3,16 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              ShutdownMode="OnExplicitShutdown">
     <Application.Resources>
-        <BooleanToVisibilityConverter x:Key="BoolVisibility" />
-        <Style TargetType="Button">
-            <Setter Property="Padding" Value="12,6" />
-            <Setter Property="Margin" Value="4,0" />
-            <Setter Property="Cursor" Value="Hand" />
-        </Style>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Themes/Dark.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+            <BooleanToVisibilityConverter x:Key="BoolVisibility" />
+            <Style TargetType="Button">
+                <Setter Property="Padding" Value="12,6" />
+                <Setter Property="Margin" Value="4,0" />
+                <Setter Property="Cursor" Value="Hand" />
+            </Style>
+        </ResourceDictionary>
     </Application.Resources>
 </Application>

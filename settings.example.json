@@ -7,5 +7,5 @@
     { "symbol": "ETHUSDT", "enabled": true, "order": 2 },
     { "symbol": "ENAUSDT", "enabled": true, "order": 3 }
   ],
-  "ui": { "showChangePercent": true, "compactMode": true }
+  "ui": { "theme": "Dark", "showChangePercent": true, "compactMode": true }
 }

@@ -35,6 +35,9 @@ public sealed class TickerViewModel : ObservableObject
     private bool showChangePercent = true;
     private bool compactMode = true;
     private DisplayMode mode;
+    private ColorTheme theme;
+    public bool IsLightTheme => theme == ColorTheme.Light;
+    public string ThemeToggleText => IsLightTheme ? "切換為深色模式" : "切換為淺色模式";
     private TickerSortColumn? sortColumn;
     private bool sortDescending;
     public TickerSortColumn? SortColumn => sortColumn;
@@ -76,10 +79,16 @@ public sealed class TickerViewModel : ObservableObject
         ShowChangePercent = settings.Ui.ShowChangePercent;
         CompactMode = settings.Ui.CompactMode;
         SetMode(settings.Mode);
+        SetTheme(settings.Ui.Theme);
         ApplySort();
         Notify(nameof(IsEmpty)); Notify(nameof(StatusText));
     }
     public void SetMode(DisplayMode value) { mode = value; Notify(nameof(ModeText)); }
+    public void SetTheme(ColorTheme value)
+    {
+        theme = value;
+        Notify(nameof(IsLightTheme)); Notify(nameof(ThemeToggleText));
+    }
     public void SortBy(TickerSortColumn column)
     {
         sortDescending = sortColumn == column && !sortDescending;

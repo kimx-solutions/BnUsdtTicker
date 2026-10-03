@@ -80,7 +80,7 @@ jobs:
           New-Item -ItemType Directory -Path artifacts/release -Force | Out-Null
           Copy-Item -LiteralPath README.md, LICENSE, settings.example.json -Destination artifacts/publish
           New-Item -ItemType Directory -Path artifacts/publish/docs/images -Force | Out-Null
-          Copy-Item -LiteralPath docs/images/app-icon.png -Destination artifacts/publish/docs/images
+          Copy-Item -Path docs/images/*.png -Destination artifacts/publish/docs/images
           $archiveName = "BinanceTicker-$env:RELEASE_TAG-win-x64.zip"
           $archivePath = Join-Path artifacts/release $archiveName
           Compress-Archive -Path artifacts/publish/* -DestinationPath $archivePath -Force

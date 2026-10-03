@@ -6,6 +6,25 @@ namespace BinanceTicker.Tests;
 
 public sealed class ViewModelTests
 {
+    [Fact]
+    public void ThemeChangesNotifyIconAndTooltipAndSurviveSettingsCopy()
+    {
+        var settings = new AppSettings { Ui = new() { Theme = ColorTheme.Light } };
+        var vm = new TickerViewModel();
+        vm.Configure(settings);
+        Assert.True(vm.IsLightTheme);
+        Assert.Equal("切換為深色模式", vm.ThemeToggleText);
+        var notified = new List<string?>();
+        vm.PropertyChanged += (_, e) => notified.Add(e.PropertyName);
+        vm.SetTheme(ColorTheme.Dark);
+        Assert.False(vm.IsLightTheme);
+        Assert.Equal("切換為淺色模式", vm.ThemeToggleText);
+        Assert.Contains(nameof(vm.IsLightTheme), notified);
+        Assert.Contains(nameof(vm.ThemeToggleText), notified);
+        using var editor = new SettingsViewModel(settings, new ValidationService());
+        Assert.Equal(ColorTheme.Light, editor.CreateSettings().Ui.Theme);
+    }
+
     [Theory]
     [InlineData(TickerSortColumn.Symbol, "BTC,ENA,ETH", "ETH,ENA,BTC")]
     [InlineData(TickerSortColumn.Price, "ETH,BTC,ENA", "ENA,BTC,ETH")]
