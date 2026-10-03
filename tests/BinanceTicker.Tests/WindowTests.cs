@@ -120,6 +120,19 @@ public sealed class WindowTests
                 Assert.True(priceScroll.ViewportHeight < priceScroll.ExtentHeight, "Long watchlists must scroll inside small work areas");
                 Assert.True(tickerWindow.ActualHeight <= 300);
                 tickerWindow.Close();
+                var symbolInput = Descendants<TextBox>(settingsWindow).Single();
+                settingsWindow.Activate();
+                Assert.True(symbolInput.Focus());
+                TextCompositionManager.StartComposition(new TextComposition(InputManager.Current, symbolInput, "SOL"));
+                application.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+                Assert.Equal("SOL", symbolInput.Text);
+                Assert.Equal("SOL", settingsVm.NewSymbol);
+                settingsWindow.UpdateLayout();
+                var inputHost = (ScrollViewer)symbolInput.Template.FindName("PART_ContentHost", symbolInput);
+                var characterBounds = symbolInput.GetRectFromCharacterIndex(0);
+                Assert.True(inputHost.ViewportHeight >= characterBounds.Height,
+                    $"Typed symbols must be visible: viewport={inputHost.ViewportHeight}, character={characterBounds}, host padding={inputHost.Padding}, host margin={inputHost.Margin}");
+                Render(settingsWindow, "settings-input-preview.png");
                 var checkbox = Descendants<CheckBox>(settingsWindow).First(c => c.DataContext is SymbolSetting s && s.Symbol == "ETHUSDT");
                 checkbox.RaiseEvent(new MouseButtonEventArgs(Mouse.PrimaryDevice, 0, MouseButton.Left)
                 { RoutedEvent = Mouse.PreviewMouseDownEvent });

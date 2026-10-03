@@ -52,7 +52,8 @@
         <Setter Property="VerticalContentAlignment" Value="Center" />
         <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="TextBox">
             <Border x:Name="Frame" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" CornerRadius="6">
-                <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}" />
+                <!-- TextBox forwards Padding to its content host; a margin would apply it twice. -->
+                <ScrollViewer x:Name="PART_ContentHost" />
             </Border>
             <ControlTemplate.Triggers><Trigger Property="IsKeyboardFocusWithin" Value="True"><Setter TargetName="Frame" Property="BorderBrush" Value="{DynamicResource SettingsAccent}" /></Trigger></ControlTemplate.Triggers>
         </ControlTemplate></Setter.Value></Setter>
