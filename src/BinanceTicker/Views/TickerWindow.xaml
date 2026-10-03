@@ -1,0 +1,70 @@
+<Window x:Class="BinanceTicker.Views.TickerWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Binance USDT Ticker" Width="390" SizeToContent="Height" MaxHeight="640"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        ResizeMode="NoResize" ShowInTaskbar="False" FontFamily="Segoe UI, Microsoft JhengHei"
+        Foreground="#F3F4F6" WindowStartupLocation="Manual">
+    <Window.Resources>
+        <Style x:Key="HeaderButton" TargetType="Button">
+            <Setter Property="Background" Value="Transparent" /><Setter Property="Foreground" Value="#A8B0BD" />
+            <Setter Property="BorderThickness" Value="0" /><Setter Property="Padding" Value="6,4" /><Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style x:Key="TickerRow" TargetType="Border">
+            <Setter Property="Padding" Value="0,13" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding DataContext.CompactMode, RelativeSource={RelativeSource AncestorType=Window}}" Value="True">
+                    <Setter Property="Padding" Value="0,7" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Resources>
+    <Border Background="#171B22" BorderBrush="#353B46" BorderThickness="1" CornerRadius="12" Padding="18,12">
+        <DockPanel LastChildFill="True">
+            <Grid DockPanel.Dock="Top" Margin="0,0,0,12">
+                <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="●" Foreground="#F0B90B" Margin="0,0,8,0" />
+                    <TextBlock Text="USDT TICKER" FontWeight="SemiBold" FontSize="12" />
+                    <TextBlock Text="{Binding ModeText}" Foreground="#8993A3" FontSize="10" Margin="10,2,0,0" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                    <Button Style="{StaticResource HeaderButton}" Content="⚙" ToolTip="設定" Click="SettingsClicked" />
+                    <Button Style="{StaticResource HeaderButton}" Content="✕" ToolTip="隱藏報價（程式繼續常駐）" Click="HideClicked" />
+                </StackPanel>
+            </Grid>
+            <TextBlock DockPanel.Dock="Bottom" Text="{Binding StatusText}" FontSize="10" Foreground="#8B95A5" Margin="0,10,0,0" TextWrapping="Wrap" />
+            <DockPanel>
+                <Grid DockPanel.Dock="Top" Margin="0,0,0,2">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="80" /><ColumnDefinition /><ColumnDefinition Width="85" /></Grid.ColumnDefinitions>
+                    <TextBlock Text="幣種" FontSize="10" Foreground="#8B95A5" />
+                    <TextBlock Grid.Column="1" Text="價格 · USDT" FontSize="10" Foreground="#8B95A5" HorizontalAlignment="Right" />
+                    <TextBlock Grid.Column="2" Text="24h" FontSize="10" Foreground="#8B95A5" HorizontalAlignment="Right" Visibility="{Binding ShowChangePercent, Converter={StaticResource BoolVisibility}}" />
+                </Grid>
+                <TextBlock DockPanel.Dock="Top" Text="尚未啟用幣種，請開啟設定新增。" Margin="0,20" Foreground="#A8B0BD" Visibility="{Binding IsEmpty, Converter={StaticResource BoolVisibility}}" />
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" MaxHeight="480">
+                    <ItemsControl ItemsSource="{Binding Prices}">
+                        <ItemsControl.ItemTemplate><DataTemplate>
+                            <Border Style="{StaticResource TickerRow}" BorderBrush="#282E38" BorderThickness="0,0,0,1" ToolTip="{Binding UpdatedText}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="80" /><ColumnDefinition /><ColumnDefinition Width="85" /></Grid.ColumnDefinitions>
+                                    <TextBlock Text="{Binding Asset}" FontWeight="SemiBold" FontSize="14" VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="1" Text="{Binding PriceText}" FontFamily="Consolas" FontSize="15" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="2" Text="{Binding ChangeText}" FontFamily="Consolas" FontSize="12" HorizontalAlignment="Right" VerticalAlignment="Center" Visibility="{Binding DataContext.ShowChangePercent, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolVisibility}}">
+                                        <TextBlock.Style><Style TargetType="TextBlock">
+                                            <Setter Property="Foreground" Value="#F07883" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsPositive}" Value="True"><Setter Property="Foreground" Value="#54CBA2" /></DataTrigger>
+                                                <DataTrigger Binding="{Binding HasPrice}" Value="False"><Setter Property="Foreground" Value="#8B95A5" /></DataTrigger>
+                                            </Style.Triggers>
+                                        </Style></TextBlock.Style>
+                                    </TextBlock>
+                                </Grid>
+                            </Border>
+                        </DataTemplate></ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </DockPanel>
+        </DockPanel>
+    </Border>
+</Window>
