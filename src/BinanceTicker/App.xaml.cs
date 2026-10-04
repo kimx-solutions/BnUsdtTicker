@@ -37,6 +37,8 @@ public partial class App : Application
     protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        instance = new();
+        if (!instance.IsFirstInstance) { Shutdown(); return; }
         try { settings = settingsService.Load(); }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         { MessageBox.Show("無法讀取設定，將使用預設值。\n" + ex.Message, "Binance Ticker"); }
@@ -49,7 +51,8 @@ public partial class App : Application
         window.SettingsRequested += OpenSettings;
         window.PriceAlertRequested += OpenPriceAlert;
         window.ThemeRequested += ToggleTheme;
-        tray = new(Dispatcher, manager.Show, OpenSettings, ChangeMode, () => _ = ExitAsync());
+        tray = new(Dispatcher, manager.Show, OpenSettings, ChangeMode, () => _ = ExitAsync(), manager.ResetSize);
+        InitializeDesktopPreferences(window);
         alerts = new PriceAlertService(settings, settingsService, new AlertHistoryService(), new NotificationService(tray));
         tray.SetMode(settings.Mode);
         if (settings.ShowOnStartup) manager.Show();
@@ -142,12 +145,19 @@ public partial class App : Application
     private async Task<bool> ApplySettingsAsync(AppSettings updated)
     {
         if (exiting) return false;
+        manager?.SavePosition();
         updated.Window.Left = settings.Window.Left; updated.Window.Top = settings.Window.Top;
+        updated.Window.Width = settings.Window.Width; updated.Window.Height = settings.Window.Height;
         // A settings window opened before a theme switch must preserve the latest theme.
         updated.Ui.Theme = settings.Ui.Theme;
         settingsWindow?.ViewModel.PreserveUneditedSparklinePreferences(updated, settings);
-        try { await alerts.ApplySettingsAsync(updated, [], preserveAlerts: true); }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or ArgumentException or AggregateException)
+        try
+        {
+            using var desktopChange = desktopPreferences?.Prepare(updated, updated.StartWithWindows || updated.StartWithWindows != settings.StartWithWindows);
+            await alerts.ApplySettingsAsync(updated, [], preserveAlerts: true);
+            desktopChange?.Commit();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or ArgumentException or InvalidOperationException or System.Security.SecurityException or AggregateException)
         { if (settingsWindow is not null) settingsWindow.ViewModel.Error = "儲存失敗：" + ex.Message; return false; }
         settings = updated;
         foreach (var symbol in priceAlertWindows.Keys.ToArray())
@@ -261,6 +271,7 @@ public partial class App : Application
     {
         if (exiting) return;
         exiting = true;
+        hotkeys?.Dispose();
         graphTimer?.Stop();
         ticker.SparklinePreferencesChanged -= SaveSparklinePreferences;
         if (tickerWindow is not null)
@@ -285,6 +296,6 @@ public partial class App : Application
     }
     protected override void OnExit(ExitEventArgs e)
     {
-        graphTimer?.Stop(); feedCancellation?.Cancel(); tray?.Dispose(); manager?.Dispose(); http.Dispose(); base.OnExit(e);
+        graphTimer?.Stop(); feedCancellation?.Cancel(); hotkeys?.Dispose(); instance?.Dispose(); tray?.Dispose(); manager?.Dispose(); http.Dispose(); base.OnExit(e);
     }
 }

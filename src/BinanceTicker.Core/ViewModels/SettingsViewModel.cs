@@ -35,6 +35,9 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
     public DisplayMode Mode { get; set; }
     public Array Modes { get; } = Enum.GetValues<DisplayMode>();
     public bool ShowOnStartup { get; set; }
+    public bool StartWithWindows { get; set; }
+    public bool HotkeyEnabled { get; set; }
+    public string HotkeyText { get; set; } = "Ctrl+Alt+T";
     public bool ShowChangePercent { get; set; }
     public bool CompactMode { get; set; }
     public bool ShowSparkline
@@ -60,6 +63,8 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
         this.binance = binance;
         Symbols = new(original.Symbols.OrderBy(s => s.Order).Select(s => s.Copy()));
         Mode = original.Mode; ShowOnStartup = original.ShowOnStartup;
+        StartWithWindows = original.StartWithWindows;
+        HotkeyEnabled = original.Hotkey.Enabled; HotkeyText = original.Hotkey.Gesture;
         ShowChangePercent = original.Ui.ShowChangePercent; CompactMode = original.Ui.CompactMode;
         Opacity = original.Window.Opacity;
         showSparkline = original.Ui.ShowSparkline; sparklineRange = original.Ui.SparklineRange;
@@ -97,6 +102,9 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
     {
         var settings = original.Copy();
         settings.Mode = Mode; settings.ShowOnStartup = ShowOnStartup;
+        settings.StartWithWindows = StartWithWindows;
+        settings.Hotkey = new() { Enabled = HotkeyEnabled,
+            Gesture = HotkeyEnabled ? HotkeyGesture.Parse(HotkeyText).ToString() : original.Hotkey.Gesture };
         settings.Window.Opacity = Opacity;
         settings.Ui.ShowChangePercent = ShowChangePercent; settings.Ui.CompactMode = CompactMode;
         settings.Ui.ShowSparkline = ShowSparkline; settings.Ui.SparklineRange = SparklineRange;

@@ -30,7 +30,7 @@
                 <TextBlock Text="勾選啟用，選取後可排序或刪除。" TextWrapping="Wrap" Foreground="{DynamicResource SettingsMuted}" Margin="0,8,0,16" />
                 <Grid Height="38" Margin="0,0,0,12">
                     <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="12" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                    <TextBox Text="{Binding NewSymbol, UpdateSourceTrigger=PropertyChanged}" ToolTip="輸入 BTC、ETH 或 BTCUSDT">
+                    <TextBox x:Name="SymbolInput" Text="{Binding NewSymbol, UpdateSourceTrigger=PropertyChanged}" ToolTip="輸入 BTC、ETH 或 BTCUSDT">
                         <TextBox.InputBindings><KeyBinding Key="Enter" Command="{Binding AddCommand}" /></TextBox.InputBindings>
                     </TextBox>
                     <Button Grid.Column="2" Content="＋ 新增" Command="{Binding AddCommand}" MinWidth="84" />
@@ -58,7 +58,11 @@
                     <ComboBox Grid.Column="1" ItemsSource="{Binding Modes}" SelectedItem="{Binding Mode}" />
                 </Grid>
                 <TextBlock Text="Fix：保持最上層 · Float：失去焦點即隱藏" TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource SettingsMuted}" Margin="0,0,0,12" />
+                <CheckBox Content="登入 Windows 後自動啟動" IsChecked="{Binding StartWithWindows}" Margin="0,0,0,10" />
                 <CheckBox Content="啟動時顯示報價" IsChecked="{Binding ShowOnStartup}" Margin="0,0,0,10" />
+                <CheckBox Content="使用全域快捷鍵顯示／隱藏報價" IsChecked="{Binding HotkeyEnabled}" Margin="0,0,0,8" />
+                <TextBox Text="{Binding HotkeyText, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="全域快捷鍵" ToolTip="輸入組合，例如 Ctrl+Alt+T" Margin="0,0,0,8" />
+                <TextBlock Text="可輸入 Ctrl、Alt、Shift、Win 加字母、數字、功能鍵或導航鍵；F12 為系統保留。儲存時會檢查衝突。" TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource SettingsMuted}" Margin="0,0,0,12" />
                 <CheckBox Content="顯示 24 小時漲跌幅" IsChecked="{Binding ShowChangePercent}" Margin="0,0,0,10" />
                 <CheckBox Content="緊湊列高" IsChecked="{Binding CompactMode}" Margin="0,0,0,12" />
                 <CheckBox Content="顯示價格走勢" IsChecked="{Binding ShowSparkline}" Margin="0,0,0,10" />
