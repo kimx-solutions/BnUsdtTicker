@@ -174,3 +174,68 @@ cannot launch itself. Startup registration and JSON settings are not atomic acro
 ### PR #12 conflict resolution
 
 Merged main f70895e (issue #7) into the issue #8 branch. Preserved both tray entries, desktop preference initialization, alert-history subscriptions and all acceptance checks. Full Release test suite: 201 passed, zero failed/skipped. Independent integration review found no actionable findings.
+
+## Issue #9 watchlists and shared holdings — 2026-10-04
+
+- Branch: `codex/issue-9-watchlists-portfolio`. Baseline: 201 tests passed.
+- Migration/settings tests cover legacy order and disabled members, existing upper and short-term alert state,
+  empty legacy lists, empty new groups, invalid names, active-group fallback, deep copies and round trips.
+- Decimal calculation tests cover gains/losses, precision, zero quantity/cost, missing quotes, disconnected and
+  expired quotes, weighted summaries, symbol deduplication, partial subtotals and row/aggregate overflow.
+- Editor tests cover independent member order/visibility, shared holdings, cancellation, group deletion,
+  last-group protection, orphan holdings, clearing, invalid input and concurrent preference preservation.
+- Ticker/App tests cover global quote acceptance outside the selected group, stale-quote rejection,
+  group-specific sorting/visibility, hidden-member totals, no feed restart on group switches or cost edits,
+  alert-state retention and failed preference persistence restoring the original selection.
+- WPF tests run within the existing single STA Application lifecycle; this avoids creating competing WPF
+  Application instances. The lifecycle smoke exercises group selection, rendered group names, summary
+  bindings, long lists, 360 × 260 DIP ticker, small settings, fixed save/cancel controls and both themes.
+- Preview PNGs are generated in `artifacts/issue-9/previews`; visual inspection caught and corrected custom
+  ComboBox selection rendering and foreground inheritance in the holding editor.
+- Release build: zero warnings/errors. Complete suite after review fixes: 248 passed, zero failed/skipped.
+- Windows x64 self-contained publish verified at `artifacts/issue-9/publish/BinanceTicker.exe`.
+
+Manual acceptance: use real Binance quotes to compare edited holdings; restart with multiple groups,
+switch groups while an off-screen alert triggers, disconnect/reconnect and check stale labels, and use
+native mouse/keyboard on the group dropdown and nested settings scroll areas. Tests do not edit user
+settings or contact Binance. No account connection, trading, startup-setting change or release publication
+is performed during verification.
+
+### Final review and execution decisions
+
+An independent reviewer was requested through the review skill, but the review agent failed before
+reviewing code because the workspace reported insufficient credits. Completed an author self-review
+instead; this is weaker than independent review. The review found two actionable integration defects:
+an open market-details window stopped receiving candle projections after its symbol left the selected
+group, and a visible symbol with globally disabled alerts could not open its alert editor. Both were
+reproduced by failing STA integration assertions and fixed; the final full suite passed 248/248.
+Additional real PriceAlertService tests verify hidden/orphan alerts and merging a trigger that occurs
+while the grouped settings editor remains open. No deferred code defects were identified.
+
+Execution choices:
+
+- Used the existing dedicated issue-9 branch in the shared checkout. This retains immediate visibility
+  in the user's workspace; it provides less isolation than a separate worktree.
+- Used native PowerShell logs and a task ledger instead of bash-based skill helpers. Task bookkeeping
+  was manual and checked against command output.
+- Preserved single-list enabled/order behavior for legacy programmatic settings-editor callers before
+  they supply explicit groups. New persisted groups use independent visibility and alert enablement;
+  the compatibility path differs from the new grouped API.
+- Added WPF checks to the existing single STA lifecycle instead of creating extra Application
+  instances. This respects WPF's singleton constraint; failures share one test-harness result.
+- Used self-review after independent review was unavailable; residual risk is the absence of a fresh
+  second reviewer. No merge, push or GitHub release was performed.
+
+### Settings layering and holdings tab follow-up
+
+- Settings is owned by the ticker and follows its Topmost property. Native window-order assertions
+  verify it remains above the FIX ticker after ticker activation, follows FLOAT mode, and stays usable
+  when the ticker is hidden. Opening from the tray before the ticker has ever appeared is covered.
+- General settings and shared holdings now occupy separate tabs with one persistent save/cancel footer.
+  STA checks edit actual holding TextBoxes, switch tabs without losing input, cancel without saving,
+  and save both a renamed group and edited cost from the holdings tab. The original settings remain
+  unchanged until the save callback applies the draft.
+- Reconfiguring the group list reproduced a blank selected-name regression in the custom ComboBox
+  template. Binding its presenter directly to SelectedItem and ItemTemplate fixes the rendered label.
+- Both themes and 400 × 400 DIP settings are rendered in `artifacts/issue-9/settings-tabs-previews`.
+  The complete Release suite passes 248 tests; build and self-contained x64 publish are refreshed.

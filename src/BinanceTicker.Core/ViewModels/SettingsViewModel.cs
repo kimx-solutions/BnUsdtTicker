@@ -5,7 +5,7 @@ using BinanceTicker.Core.Services;
 
 namespace BinanceTicker.Core.ViewModels;
 
-public sealed class SettingsViewModel : ObservableObject, IDisposable
+public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 {
     private readonly AppSettings original;
     private readonly IBinanceService binance;
@@ -18,7 +18,7 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
     private string sparklineRange = "1h";
     private bool showSparklineEdited;
     private bool sparklineRangeEdited;
-    public ObservableCollection<SymbolSetting> Symbols { get; }
+    public ObservableCollection<SymbolSetting> Symbols { get; private set; }
     public string NewSymbol { get => newSymbol; set => Set(ref newSymbol, value); }
     public string Error { get => error; set => Set(ref error, value); }
     public bool IsBusy
@@ -60,6 +60,8 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
     public SettingsViewModel(AppSettings settings, IBinanceService binance)
     {
         original = settings.Copy();
+        legacyEditor = original.Watchlists is null;
+        WatchlistSettings.Normalize(original);
         this.binance = binance;
         Symbols = new(original.Symbols.OrderBy(s => s.Order).Select(s => s.Copy()));
         Mode = original.Mode; ShowOnStartup = original.ShowOnStartup;
@@ -73,6 +75,7 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
         MoveUpCommand = new(() => Move(-1), () => SelectedSymbol is not null && Symbols.IndexOf(SelectedSymbol) > 0);
         MoveDownCommand = new(() => Move(1), () => SelectedSymbol is not null && Symbols.IndexOf(SelectedSymbol) < Symbols.Count - 1);
         SelectedSymbol = Symbols.FirstOrDefault();
+        InitializeWatchlists();
     }
 
     public async Task AddAsync()
@@ -88,6 +91,7 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
             { Error = "Binance 沒有可交易的此 USDT 現貨交易對。"; return; }
             if (lifetime.IsCancellationRequested) return;
             var item = new SymbolSetting { Symbol = symbol, Order = Symbols.Count + 1 };
+            EnsureHoldingEditor(symbol);
             Symbols.Add(item); SelectedSymbol = item; NewSymbol = "";
         }
         catch (OperationCanceledException) when (lifetime.IsCancellationRequested) { }
@@ -100,6 +104,7 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
 
     public AppSettings CreateSettings()
     {
+        FlushWatchlist();
         var settings = original.Copy();
         settings.Mode = Mode; settings.ShowOnStartup = ShowOnStartup;
         settings.StartWithWindows = StartWithWindows;
@@ -108,10 +113,19 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
         settings.Window.Opacity = Opacity;
         settings.Ui.ShowChangePercent = ShowChangePercent; settings.Ui.CompactMode = CompactMode;
         settings.Ui.ShowSparkline = ShowSparkline; settings.Ui.SparklineRange = SparklineRange;
-        settings.Symbols = Symbols.Select((s, i) =>
+        settings.Watchlists = Watchlists.Select(g=>g.Copy()).ToList();
+        settings.Holdings = Holdings.Select(h=>h.CreateHolding()).OfType<HoldingSetting>().ToList();
+        var visibleOrder = Symbols.Select(s=>s.Symbol).ToArray();
+        settings.Symbols = settings.Symbols.OrderBy(s=>Array.IndexOf(visibleOrder,s.Symbol) is var index && index>=0 ? index : int.MaxValue).ToList();
+        for(var i=0;i<settings.Symbols.Count;i++)
         {
-            var copy = s.Copy(); copy.Order = i + 1; return copy;
-        }).ToList();
+            var item=settings.Symbols[i];item.Order=i+1;
+            item.Enabled=Holdings.First(h=>h.Symbol==item.Symbol).AlertEnabled;
+            // Keep old callers' single-list enabled semantics before they adopt explicit groups.
+            if(legacyEditor && !MarketDemand.HasAlert(item.Alert) && Symbols.FirstOrDefault(s=>s.Symbol==item.Symbol) is { } member)
+                item.Enabled=member.Enabled;
+        }
+        if(!settings.Watchlists.Any(g=>g.Id==settings.ActiveWatchlistId))settings.ActiveWatchlistId=settings.Watchlists[0].Id;
         return settings;
     }
 

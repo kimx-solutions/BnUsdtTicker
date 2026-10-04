@@ -89,6 +89,19 @@
                     <Button Style="{StaticResource HeaderButton}" Content="✕" ToolTip="隱藏報價（程式繼續常駐）" Click="HideClicked" />
                 </StackPanel>
             </Grid>
+            <StackPanel DockPanel.Dock="Top" Margin="8,0,0,8">
+                <ComboBox x:Name="WatchlistSelector" ItemsSource="{Binding Watchlists}"
+                          SelectedItem="{Binding SelectedWatchlist, Mode=TwoWay}" AutomationProperties.Name="自選分組"
+                          ToolTip="切換自選分組；其他分組的提醒與持倉會繼續更新。" MinHeight="30" Padding="8,4">
+                    <ComboBox.Resources><ResourceDictionary><ResourceDictionary.MergedDictionaries>
+                        <ResourceDictionary Source="SettingsStyles.xaml" />
+                    </ResourceDictionary.MergedDictionaries></ResourceDictionary></ComboBox.Resources>
+                    <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" /></DataTemplate></ComboBox.ItemTemplate>
+                </ComboBox>
+                <TextBlock Text="{Binding WatchlistError}" Foreground="{DynamicResource ThemeError}" TextWrapping="Wrap" FontSize="10">
+                    <TextBlock.Style><Style TargetType="TextBlock"><Style.Triggers><Trigger Property="Text" Value=""><Setter Property="Visibility" Value="Collapsed" /></Trigger></Style.Triggers></Style></TextBlock.Style>
+                </TextBlock>
+            </StackPanel>
             <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
                 <Button x:Name="SparklineToggleButton" Command="{Binding ToggleSparklineCommand}"
                         ToolTip="{Binding SparklineToggleText}" AutomationProperties.Name="{Binding SparklineToggleText}">
@@ -200,11 +213,22 @@
                 </Grid>
                 <TextBlock DockPanel.Dock="Top" Text="尚未啟用幣種，請開啟設定新增。" Margin="0,20" Foreground="{DynamicResource TickerSecondary}" Visibility="{Binding IsEmpty, Converter={StaticResource BoolVisibility}}" />
                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel>
+                    <Expander IsExpanded="{Binding ShowHoldings, Mode=TwoWay}" Margin="4,4,0,6"
+                              Foreground="{DynamicResource TickerSecondary}" FontSize="11" AutomationProperties.Name="持倉與損益摘要">
+                        <Expander.Header><TextBlock Text="持倉與損益" Foreground="{DynamicResource TickerSecondary}" /></Expander.Header>
+                        <StackPanel Margin="8,8,0,6">
+                            <TextBlock Text="本組全部成員" FontWeight="SemiBold" Foreground="{DynamicResource SettingsAccent}" />
+                            <TextBlock Text="{Binding CurrentPortfolio.Text}" TextWrapping="Wrap" Margin="0,4,0,10" />
+                            <TextBlock Text="全部持倉" FontWeight="SemiBold" Foreground="{DynamicResource SettingsAccent}" />
+                            <TextBlock Text="{Binding TotalPortfolio.Text}" TextWrapping="Wrap" Margin="0,4,0,0" />
+                        </StackPanel>
+                    </Expander>
                     <ItemsControl ItemsSource="{Binding Prices}">
                         <ItemsControl.ItemTemplate><DataTemplate>
                             <Border Style="{StaticResource TickerRow}" BorderBrush="{DynamicResource TickerSeparator}" BorderThickness="0,0,0,1" ToolTip="{Binding UpdatedText}">
                                 <Grid>
-                                    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                                    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
                                     <Grid.ColumnDefinitions><ColumnDefinition Width="20" /><ColumnDefinition Width="68" /><ColumnDefinition /><ColumnDefinition Width="85" /></Grid.ColumnDefinitions>
                                     <Button Tag="{Binding Symbol}" Click="PriceAlertClicked" ToolTip="{Binding AlertButtonText}" AutomationProperties.Name="{Binding AlertButtonText}">
                                         <Button.Style><Style TargetType="Button" BasedOn="{StaticResource AlertButton}"><Style.Triggers>
@@ -237,10 +261,14 @@
                                             <TextBlock.Style><Style TargetType="TextBlock"><Style.Triggers><Trigger Property="Text" Value=""><Setter Property="Visibility" Value="Collapsed" /></Trigger></Style.Triggers></Style></TextBlock.Style>
                                         </TextBlock>
                                     </StackPanel>
+                                    <TextBlock Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="3" Text="{Binding HoldingText}" ToolTip="{Binding HoldingToolTip}"
+                                               Margin="0,5,0,0" FontSize="10" Foreground="{DynamicResource TickerSecondary}" TextWrapping="Wrap"
+                                               Visibility="{Binding DataContext.ShowHoldings, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolVisibility}}" />
                                 </Grid>
                             </Border>
                         </DataTemplate></ItemsControl.ItemTemplate>
                     </ItemsControl>
+                    </StackPanel>
                 </ScrollViewer>
             </DockPanel>
         </DockPanel>

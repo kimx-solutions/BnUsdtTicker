@@ -62,6 +62,7 @@ public sealed class SettingsService
         settings.Window.Top = double.IsFinite(settings.Window.Top) ? settings.Window.Top : 100;
         settings.Window.Opacity = double.IsFinite(settings.Window.Opacity) ? Math.Clamp(settings.Window.Opacity, 0.2, 1) : 0.95;
         var symbols = new HashSet<string>(StringComparer.Ordinal);
+        WatchlistSettings.Normalize(settings);
         settings.Symbols = settings.Symbols.OrderBy(s => s.Order).Where(s =>
         {
             s.Symbol = SymbolNormalizer.Normalize(s.Symbol);

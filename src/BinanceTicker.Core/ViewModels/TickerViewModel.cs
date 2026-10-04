@@ -6,7 +6,7 @@ namespace BinanceTicker.Core.ViewModels;
 
 public enum TickerSortColumn { Symbol, Price, ChangePercent }
 
-public sealed class TickerRowViewModel(string symbol) : ObservableObject
+public sealed partial class TickerRowViewModel(string symbol) : ObservableObject
 {
     private TickerPrice? price;
     private bool upperTriggered;
@@ -102,7 +102,7 @@ public sealed class TickerRowViewModel(string symbol) : ObservableObject
     }
 }
 
-public sealed class TickerViewModel : ObservableObject
+public sealed partial class TickerViewModel : ObservableObject
 {
     private ConnectionStatus status = ConnectionStatus.Connecting;
     private bool showChangePercent = true;
@@ -151,7 +151,7 @@ public sealed class TickerViewModel : ObservableObject
     {
         SelectHourCommand = new(() => SelectRange("1h"));
         SelectDayCommand = new(() => SelectRange("24h"));
-        ToggleSparklineCommand = new(() => { ShowSparkline = !ShowSparkline; Notify(nameof(SparklineToggleText)); SparklinePreferencesChanged?.Invoke(); });
+        ToggleSparklineCommand = new(() => { ShowSparkline = !ShowSparkline; Notify(nameof(SparklineToggleText)); SparklinePreferencesChanged?.Invoke(); PreferencesChanged(); });
         SortSymbolCommand = new(() => SortBy(TickerSortColumn.Symbol));
         SortPriceCommand = new(() => SortBy(TickerSortColumn.Price));
         SortChangeCommand = new(() => SortBy(TickerSortColumn.ChangePercent));
@@ -162,27 +162,26 @@ public sealed class TickerViewModel : ObservableObject
         if (SparklineRange == range) return;
         SparklineRange = range;
         SparklinePreferencesChanged?.Invoke();
+        PreferencesChanged();
     }
 
     public void Configure(AppSettings settings)
     {
-        var existing = Prices.ToDictionary(p => p.Symbol);
-        Prices.Clear();
-        foreach (var symbol in settings.Symbols.Where(s => s.Enabled).OrderBy(s => s.Order))
+        var legacy = settings.Watchlists is null;
+        WatchlistSettings.Normalize(settings);
+        watchlistSettings = settings.Copy();
+        if(legacy) { var group=WatchlistSettings.Active(watchlistSettings);group.SortColumn=sortColumn;group.SortDescending=sortDescending; }
+        Watchlists = new(watchlistSettings.Watchlists!); Notify(nameof(Watchlists));
+        var symbols=settings.Symbols.Select(s=>s.Symbol).ToHashSet(StringComparer.Ordinal);
+        foreach(var removed in rows.Keys.Where(s=>!symbols.Contains(s)).ToArray()) { rows.Remove(removed);quotes.Remove(removed); }
+        foreach(var symbol in settings.Symbols)
         {
-            var row = existing.TryGetValue(symbol.Symbol, out var existingRow) ? existingRow : new(symbol.Symbol);
+            if(!rows.TryGetValue(symbol.Symbol,out var row))rows[symbol.Symbol]=row=new(symbol.Symbol);
             row.SetAlertState(symbol.Alert);
-            Prices.Add(row);
         }
-        ShowSparkline = settings.Ui.ShowSparkline;
-        SparklineRange = settings.Ui.SparklineRange == "24h" ? "24h" : "1h";
-        Notify(nameof(SparklineToggleText));
-        ShowChangePercent = settings.Ui.ShowChangePercent;
-        CompactMode = settings.Ui.CompactMode;
+        ShowActiveWatchlist();
         SetMode(settings.Mode);
         SetTheme(settings.Ui.Theme);
-        ApplySort();
-        Notify(nameof(IsEmpty)); Notify(nameof(StatusText));
     }
     public void SetMode(DisplayMode value) { mode = value; Notify(nameof(ModeText)); }
     public void SetTheme(ColorTheme value)
@@ -198,6 +197,7 @@ public sealed class TickerViewModel : ObservableObject
         Notify(nameof(SortColumn));
         Notify(nameof(SymbolSortHeader)); Notify(nameof(PriceSortHeader)); Notify(nameof(ChangeSortHeader));
         Notify(nameof(SortDescription));
+        PreferencesChanged();
     }
 
     private string SortIndicator(TickerSortColumn column) => sortColumn != column ? "" : sortDescending ? " ▼" : " ▲";
@@ -225,18 +225,21 @@ public sealed class TickerViewModel : ObservableObject
 
     public bool Update(TickerPrice price)
     {
-        var row = Prices.FirstOrDefault(p => p.Symbol == price.Symbol);
+        var row = rows.GetValueOrDefault(price.Symbol);
         if (row is null || !row.Update(price)) return false;
+        quotes[price.Symbol]=price;
+        RefreshPortfolio(DateTimeOffset.UtcNow);
         ApplySort();
         return true;
     }
     public void SetAlertState(string symbol, PriceAlertSettings alert)
     {
-        Prices.FirstOrDefault(p => p.Symbol == symbol)?.SetAlertState(alert);
+        rows.GetValueOrDefault(symbol)?.SetAlertState(alert);
     }
     public void SetStatus(ConnectionStatus value)
     {
         status = value;
         Notify(nameof(Status)); Notify(nameof(StatusText)); Notify(nameof(IsConnected));
+        RefreshPortfolio(DateTimeOffset.UtcNow);
     }
 }
