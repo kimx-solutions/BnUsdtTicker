@@ -6,7 +6,16 @@
   "window": { "left": 100, "top": 100, "width": 390, "height": 360, "opacity": 0.95 },
   "symbols": [
     { "symbol": "BTCUSDT", "enabled": true, "order": 1,
-      "alert": { "upperPrice": 85000, "upperTriggered": false, "lowerPrice": 80000, "lowerTriggered": false } },
+      "alert": {
+        "upperPrice": 85000, "upperTriggered": false,
+        "lowerPrice": 80000, "lowerTriggered": false,
+        "upperPolicy": { "strategy": "Once", "cooldownMinutes": 0, "lastTriggeredAt": null, "armed": true },
+        "lowerPolicy": { "strategy": "Once", "cooldownMinutes": 0, "lastTriggeredAt": null, "armed": true },
+        "rise": { "thresholdPercent": null, "windowMinutes": 5, "triggered": false,
+          "policy": { "strategy": "Once", "cooldownMinutes": 0, "lastTriggeredAt": null, "armed": true } },
+        "fall": { "thresholdPercent": null, "windowMinutes": 5, "triggered": false,
+          "policy": { "strategy": "Once", "cooldownMinutes": 0, "lastTriggeredAt": null, "armed": true } }
+      } },
     { "symbol": "ETHUSDT", "enabled": true, "order": 2 },
     { "symbol": "ENAUSDT", "enabled": true, "order": 3 }
   ],
