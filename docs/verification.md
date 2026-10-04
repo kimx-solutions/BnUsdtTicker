@@ -132,3 +132,45 @@ in tests; it does not substitute for physical monitor hardware verification.
 Native Windows banner visibility remains manual (including Do Not Disturb); submission and
 complete durable rollback are tested without touching the user's local settings or real quotes.
 Cross-file persistence and shell notification are not atomic across process termination/power loss.
+
+## Issue #8 desktop convenience — 2026-10-04
+
+- Implemented on `codex/issue-8-desktop-convenience`, based on main `18fa1c0`.
+- Release build succeeded with zero warnings/errors; initial complete test run on main base: 162 passed,
+  zero failed/skipped. Windows x64 self-contained publish succeeded at
+  `artifacts/issue-8-publish/BinanceTicker.exe`.
+- Core tests cover missing/invalid sizes, settings copy isolation, round-trip sizes and desktop
+  options, malformed hotkey recovery, supported/reserved key combinations, negative coordinates,
+  undersized work areas, minimum-size anchored resizing, and quoted startup command limits.
+- Service tests cover cancelled/rejected hotkey changes retaining old registration, pending
+  candidate cleanup, startup rollback after cancelled settings save, isolated HKCU test-value
+  creation/removal, and single-instance exclusion/restart. Tests do not enable the user's startup item.
+- Single STA WPF smoke checks eight resize handlers, real visual hit testing at all grip centers,
+  drag exclusion through template descendants, scrollbar exclusion, size restore/save/reset,
+  Fix/Float size retention, scrolling with 50 symbols and fixed buttons in dark/light themes.
+- Native Win32 test registers a shortcut on the real HWND, checks conflicting registration on a
+  second HWND, posts WM_HOTKEY while hidden, verifies toggle to visible, and verifies release.
+  This exercises registration/message routing, not physical key presses in another foreground app.
+- App settings-write failure test verifies startup/hotkey rollback and preserves live dimensions
+  despite a settings draft with stale bounds. No user settings or live Binance data are used.
+- Preview artifacts: `artifacts/issue-8`, including small dark/light ticker and settings layouts.
+  Normal minimum height was increased from the initial 220 to 260 DIP to fit a complete quote row.
+- Independent review found no actionable code defects, but requested additional mouse-hit testing.
+  Added visual hit tests and a failing corner-alpha regression, fixed grips with nonzero alpha so
+  layered-window corners receive native input even at minimum opacity. Follow-up review found
+  no remaining actionable findings.
+- Native API choices follow Microsoft documentation:
+  [RegisterHotKey](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-registerhotkey),
+  [Thumb resizing](https://learn.microsoft.com/en-us/dotnet/desktop/wpf/controls/how-to-resize-a-canvas-by-using-a-thumb),
+  [Run keys](https://learn.microsoft.com/en-us/windows/win32/setupapi/run-and-runonce-registry-keys),
+  [layered-window hit testing](https://learn.microsoft.com/en-us/windows/win32/winmsg/window-features).
+
+Manual acceptance remains for physical edge/corner dragging and scrollbar interaction, mixed
+100%/150%/200% DPI monitors and disconnects, a real foreground-app shortcut press, and actual
+Windows sign-out/sign-in with startup enabled/disabled and a moved executable. README lists
+these explicitly. Startup repairs a moved path on the next manual launch; a missing old executable
+cannot launch itself. Startup registration and JSON settings are not atomic across process termination.
+
+### PR #12 conflict resolution
+
+Merged main f70895e (issue #7) into the issue #8 branch. Preserved both tray entries, desktop preference initialization, alert-history subscriptions and all acceptance checks. Full Release test suite: 201 passed, zero failed/skipped. Independent integration review found no actionable findings.

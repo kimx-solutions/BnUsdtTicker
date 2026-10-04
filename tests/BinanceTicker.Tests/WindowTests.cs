@@ -57,6 +57,7 @@ public sealed class WindowTests
                     manager.CloseForExit();
                 }
 
+                DesktopWindowTests.Verify(application);
                 MarketVisualizationWindowTests.Verify(application);
                 AlertHistoryWindowTests.Verify(application);
                 AlertHistoryWindowTests.VerifyQuoteRouting(application);
@@ -184,7 +185,7 @@ public sealed class WindowTests
                 application.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
                 Assert.False(alertWindow.IsVisible);
                 Assert.Equal(85000.125m, savedAlert!.UpperPrice);
-                var symbolInput = Descendants<TextBox>(settingsWindow).Single(t => t.DataContext is SettingsViewModel);
+                var symbolInput = (TextBox)settingsWindow.FindName("SymbolInput");
                 settingsWindow.Activate();
                 Assert.True(symbolInput.Focus());
                 TextCompositionManager.StartComposition(new TextComposition(InputManager.Current, symbolInput, "SOL"));

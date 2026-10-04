@@ -4,11 +4,18 @@
         xmlns:models="clr-namespace:BinanceTicker.Core.Models;assembly=BinanceTicker.Core"
         xmlns:controls="clr-namespace:BinanceTicker.Controls"
         xmlns:vm="clr-namespace:BinanceTicker.Core.ViewModels;assembly=BinanceTicker.Core"
-        Title="Binance USDT Ticker" Width="390" SizeToContent="Height" MaxHeight="640"
+        Title="Binance USDT Ticker" Width="390" Height="360" MinWidth="360" MinHeight="260" SizeToContent="Manual"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         ResizeMode="NoResize" ShowInTaskbar="True" Icon="/BinanceTicker;component/Assets/app.ico" FontFamily="Segoe UI, Microsoft JhengHei"
         Foreground="{DynamicResource TickerText}" WindowStartupLocation="Manual">
     <Window.Resources>
+        <Style x:Key="ResizeGrip" TargetType="Thumb">
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="ToolTip" Value="拖曳邊緣或角落調整視窗大小" />
+            <!-- Keep layered-window corner pixels hittable, including at 20% window opacity. -->
+            <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Thumb"><Border Background="#08000000" /></ControlTemplate></Setter.Value></Setter>
+            <EventSetter Event="DragDelta" Handler="ResizeDragged" />
+        </Style>
         <Style x:Key="AlertButton" TargetType="Button">
             <Setter Property="Foreground" Value="{DynamicResource TickerMuted}" />
             <Setter Property="Cursor" Value="Hand" />
@@ -68,6 +75,7 @@
             </ControlTemplate></Setter.Value></Setter>
         </Style>
     </Window.Resources>
+    <Grid>
     <Border Background="{DynamicResource TickerBackground}" BorderBrush="{DynamicResource TickerBorder}" BorderThickness="1" CornerRadius="12" Padding="10,12,18,12">
         <DockPanel LastChildFill="True">
             <Grid DockPanel.Dock="Top" Margin="8,0,0,12">
@@ -191,7 +199,7 @@
                     </Button>
                 </Grid>
                 <TextBlock DockPanel.Dock="Top" Text="尚未啟用幣種，請開啟設定新增。" Margin="0,20" Foreground="{DynamicResource TickerSecondary}" Visibility="{Binding IsEmpty, Converter={StaticResource BoolVisibility}}" />
-                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" MaxHeight="480">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                     <ItemsControl ItemsSource="{Binding Prices}">
                         <ItemsControl.ItemTemplate><DataTemplate>
                             <Border Style="{StaticResource TickerRow}" BorderBrush="{DynamicResource TickerSeparator}" BorderThickness="0,0,0,1" ToolTip="{Binding UpdatedText}">
@@ -237,4 +245,13 @@
             </DockPanel>
         </DockPanel>
     </Border>
+        <Thumb Style="{StaticResource ResizeGrip}" Tag="N" Cursor="SizeNS" Height="6" VerticalAlignment="Top" Margin="10,0,10,0" AutomationProperties.Name="調整上緣" />
+        <Thumb Style="{StaticResource ResizeGrip}" Tag="S" Cursor="SizeNS" Height="6" VerticalAlignment="Bottom" Margin="10,0,10,0" AutomationProperties.Name="調整下緣" />
+        <Thumb Style="{StaticResource ResizeGrip}" Tag="W" Cursor="SizeWE" Width="6" HorizontalAlignment="Left" Margin="0,10,0,10" AutomationProperties.Name="調整左緣" />
+        <Thumb Style="{StaticResource ResizeGrip}" Tag="E" Cursor="SizeWE" Width="6" HorizontalAlignment="Right" Margin="0,10,0,10" AutomationProperties.Name="調整右緣" />
+        <Thumb Style="{StaticResource ResizeGrip}" Tag="NW" Cursor="SizeNWSE" Width="10" Height="10" HorizontalAlignment="Left" VerticalAlignment="Top" AutomationProperties.Name="調整左上角" />
+        <Thumb Style="{StaticResource ResizeGrip}" Tag="NE" Cursor="SizeNESW" Width="10" Height="10" HorizontalAlignment="Right" VerticalAlignment="Top" AutomationProperties.Name="調整右上角" />
+        <Thumb Style="{StaticResource ResizeGrip}" Tag="SW" Cursor="SizeNESW" Width="10" Height="10" HorizontalAlignment="Left" VerticalAlignment="Bottom" AutomationProperties.Name="調整左下角" />
+        <Thumb Style="{StaticResource ResizeGrip}" Tag="SE" Cursor="SizeNWSE" Width="10" Height="10" HorizontalAlignment="Right" VerticalAlignment="Bottom" AutomationProperties.Name="調整右下角" />
+    </Grid>
 </Window>
