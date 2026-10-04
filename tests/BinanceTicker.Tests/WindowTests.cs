@@ -226,6 +226,7 @@ public sealed class WindowTests
                 tray.SetMode(DisplayMode.Float);
                 RenderTrayMenu(tray, "tray-menu-float-preview.png");
                 RenderTrayMenu(tray, "tray-menu-hover-preview.png", 0);
+                MarketVisualizationIntegrationTests.Verify(application);
                 VerifyRuntimePriceAlerts(application);
                 VerifyPendingPriceUpdateDrainsBeforeShutdown(application);
             }
@@ -311,6 +312,7 @@ public sealed class WindowTests
         application.Dispatcher.Invoke(() => queue.Invoke(application, [new TickerPrice("BTCUSDT", 90000m, 0m, DateTime.UtcNow.AddMinutes(1))]));
         Assert.True(alerts.Entered);
         Task? exit = null;
+        var releaseHistory = MarketVisualizationIntegrationTests.AttachPendingHistory(application);
         application.Dispatcher.Invoke(() => exit = (Task)shutdown.Invoke(application, null)!);
         Assert.NotNull(exit);
         Assert.False(exit.IsCompleted);
@@ -319,6 +321,9 @@ public sealed class WindowTests
         _ = exit.ContinueWith(_ => frame.Continue = false, CancellationToken.None,
             TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
         alerts.Release();
+        Assert.False(exit.IsCompleted);
+        Assert.True(nativeTray.Visible);
+        releaseHistory();
         if (!exit.IsCompleted)
         {
             var timeout = new System.Windows.Threading.DispatcherTimer(TimeSpan.FromSeconds(5),

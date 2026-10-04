@@ -56,6 +56,7 @@ internal static class MarketVisualizationWindowTests
             finally { details.Close(); }
             var many = new AppSettings { Symbols=Enumerable.Range(0,25).Select(i=>new SymbolSetting { Symbol=$"COIN{i}USDT", Enabled=true, Order=i }).ToList() };
             vm.Configure(many);
+            vm.SelectDayCommand.Execute(null);
             foreach(var row in vm.Prices) { row.Update(new(row.Symbol,100,1,now.UtcDateTime)); row.UpdateHistory(candles.TakeLast(20).ToArray(),new(HistoryLoadStatus.Loaded),ConnectionStatus.Disconnected,"24h",now); }
             Render(window,"market-long-partial-disconnected.png"); Assert.InRange(window.ActualHeight,100,640);
             var type = typeof(TickerWindow).Assembly.GetType("BinanceTicker.Controls.SparklineControl"); Assert.NotNull(type);

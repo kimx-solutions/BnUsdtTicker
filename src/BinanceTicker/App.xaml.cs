@@ -15,6 +15,12 @@ public partial class App : Application
     private readonly HttpClient http = new() { Timeout = TimeSpan.FromSeconds(10) };
     private readonly SemaphoreSlim feedGate = new(1, 1);
     private readonly TickerViewModel ticker = new();
+    private readonly CandleCache candleCache = new();
+    private HistoryCoordinator? marketHistory;
+    private MarketDetailsWindowManager? marketDetails;
+    private readonly IBrowserLauncher browser = new BrowserLauncher();
+    private System.Windows.Threading.DispatcherTimer? graphTimer;
+    private TickerWindow? tickerWindow;
     private AppSettings settings = new();
     private TickerWindowManager? manager;
     private TrayIconService? tray;
@@ -39,6 +45,7 @@ public partial class App : Application
         ticker.Configure(settings);
         var window = new TickerWindow { DataContext = ticker };
         manager = new(window, settings, SaveSettings);
+        InitializeMarketVisualization(window);
         window.SettingsRequested += OpenSettings;
         window.PriceAlertRequested += OpenPriceAlert;
         window.ThemeRequested += ToggleTheme;
@@ -48,6 +55,58 @@ public partial class App : Application
         if (settings.ShowOnStartup) manager.Show();
         if (settingsService.LoadWarning is { } warning) tray.ShowWarning(warning);
         await RestartFeedAsync();
+    }
+    private void InitializeMarketVisualization(TickerWindow window)
+    {
+        tickerWindow = window;
+        marketHistory ??= new(new BinanceHistoryService(new HistoryRequestScheduler(http)), candleCache);
+        marketDetails = new(symbol =>
+        {
+            var row = ticker.Prices.FirstOrDefault(r => r.Symbol == symbol);
+            return row is null ? null : new(row, () => marketHistory.EnsureLoadedAsync(symbol, true), browser.Open);
+        });
+        marketDetails.OpenSymbolsChanged += UpdateHistoryDemand;
+        window.MarketDetailsRequested += OpenMarketDetails;
+        window.IsVisibleChanged += MarketVisibilityChanged;
+        ticker.SparklinePreferencesChanged += SaveSparklinePreferences;
+        graphTimer = new(TimeSpan.FromSeconds(1), System.Windows.Threading.DispatcherPriority.Background,
+            (_, _) => RefreshMarketGraphs(), Dispatcher);
+        graphTimer.Stop();
+    }
+    private void OpenMarketDetails(string symbol) { if (!exiting) marketDetails?.Show(symbol); }
+    private void MarketVisibilityChanged(object sender, DependencyPropertyChangedEventArgs e) => UpdateHistoryDemand();
+    private void SaveSparklinePreferences()
+    {
+        if (exiting) return;
+        settings.Ui.ShowSparkline = ticker.ShowSparkline;
+        settings.Ui.SparklineRange = ticker.SparklineRange;
+        SaveSettings();
+        UpdateHistoryDemand();
+        RefreshMarketGraphs();
+    }
+    private string[] GetHistoryDemand()
+    {
+        var main = tickerWindow?.IsVisible == true && ticker.ShowSparkline
+            ? ticker.Prices.Select(r => r.Symbol) : Enumerable.Empty<string>();
+        var details = marketDetails?.OpenSymbols ?? Array.Empty<string>();
+        var enabled = settings.Symbols.Where(s => s.Enabled).Select(s => s.Symbol).ToHashSet(StringComparer.Ordinal);
+        return main.Concat(details).Where(enabled.Contains).Distinct(StringComparer.Ordinal).ToArray();
+    }
+    private void UpdateHistoryDemand()
+    {
+        if (exiting || marketHistory is null) return;
+        var demanded = GetHistoryDemand();
+        marketHistory.SetDemand(demanded);
+        if (demanded.Length > 0) graphTimer?.Start(); else graphTimer?.Stop();
+    }
+    private void RefreshMarketGraphs()
+    {
+        if (exiting || marketHistory is null) return;
+        var now = DateTimeOffset.UtcNow;
+        var demanded = GetHistoryDemand().ToHashSet(StringComparer.Ordinal);
+        foreach (var row in ticker.Prices.Where(r => demanded.Contains(r.Symbol)))
+            row.UpdateHistory(candleCache.GetSnapshot(row.Symbol, now), marketHistory.GetState(row.Symbol),
+                ticker.Status, ticker.SparklineRange, now);
     }
     private void SaveSettings()
     {
@@ -68,6 +127,7 @@ public partial class App : Application
         ticker.SetTheme(settings.Ui.Theme);
         settingsWindow?.RefreshTheme();
         foreach (var window in priceAlertWindows.Values) window.RefreshTheme();
+        marketDetails?.RefreshTheme();
         tray?.RefreshTheme();
         SaveSettings();
     }
@@ -85,6 +145,7 @@ public partial class App : Application
         updated.Window.Left = settings.Window.Left; updated.Window.Top = settings.Window.Top;
         // A settings window opened before a theme switch must preserve the latest theme.
         updated.Ui.Theme = settings.Ui.Theme;
+        settingsWindow?.ViewModel.PreserveUneditedSparklinePreferences(updated, settings);
         try { await alerts.ApplySettingsAsync(updated, [], preserveAlerts: true); }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or ArgumentException or AggregateException)
         { if (settingsWindow is not null) settingsWindow.ViewModel.Error = "儲存失敗：" + ex.Message; return false; }
@@ -92,6 +153,7 @@ public partial class App : Application
         foreach (var symbol in priceAlertWindows.Keys.ToArray())
             if (!settings.Symbols.Any(s => s.Symbol == symbol)) priceAlertWindows[symbol].Close();
         RefreshAlertWindows();
+        marketDetails?.CloseUnavailable(settings.Symbols.Where(s => s.Enabled).Select(s => s.Symbol).ToArray());
         ticker.Configure(settings); manager!.Apply(settings); tray!.SetMode(settings.Mode);
         await RestartFeedAsync();
         if (!exiting) manager.Show();
@@ -145,9 +207,16 @@ public partial class App : Application
             void OnUi(Action action) => Dispatcher.BeginInvoke(() =>
             { if (!exiting && !token.IsCancellationRequested && generation == feedGeneration) action(); });
             var symbols = settings.Symbols.Where(s => s.Enabled).OrderBy(s => s.Order).Select(s => s.Symbol).ToArray();
+            if (marketHistory is not null) await marketHistory.ConfigureAsync(symbols);
+            if (exiting) return;
             ticker.SetStatus(ConnectionStatus.Connecting);
             var feed = new MarketFeed(binance, new());
-            feedTask = Task.Run(() => feed.RunAsync(symbols, p => OnUi(() => QueuePriceUpdate(p)), status => OnUi(() => ticker.SetStatus(status)), token));
+            feedTask = Task.Run(() => feed.RunAsync(symbols, p => OnUi(() => QueuePriceUpdate(p)), status => OnUi(() =>
+            {
+                ticker.SetStatus(status);
+                marketHistory?.OnConnectionStatus(status);
+            }), token, candle => OnUi(() => candleCache.Merge(candle, DateTimeOffset.UtcNow))));
+            UpdateHistoryDemand();
         }
         finally { feedGate.Release(); }
     }
@@ -191,10 +260,24 @@ public partial class App : Application
     private async Task ExitAsync()
     {
         if (exiting) return;
-        exiting = true; manager?.SavePosition(); settingsWindow?.Close();
+        exiting = true;
+        graphTimer?.Stop();
+        ticker.SparklinePreferencesChanged -= SaveSparklinePreferences;
+        if (tickerWindow is not null)
+        {
+            tickerWindow.MarketDetailsRequested -= OpenMarketDetails;
+            tickerWindow.IsVisibleChanged -= MarketVisibilityChanged;
+        }
+        if (marketDetails is not null) marketDetails.OpenSymbolsChanged -= UpdateHistoryDemand;
+        marketDetails?.CloseAll();
+        manager?.SavePosition(); settingsWindow?.Close();
         foreach (var window in priceAlertWindows.Values.ToArray()) window.Close();
         await feedGate.WaitAsync();
-        try { await StopFeedAsync(); }
+        try
+        {
+            await StopFeedAsync();
+            if (marketHistory is not null) await marketHistory.StopAsync();
+        }
         finally { feedGate.Release(); }
         await Task.WhenAll(pendingPriceUpdates.ToArray());
         tray?.Dispose(); tray = null;
@@ -202,6 +285,6 @@ public partial class App : Application
     }
     protected override void OnExit(ExitEventArgs e)
     {
-        feedCancellation?.Cancel(); tray?.Dispose(); manager?.Dispose(); http.Dispose(); base.OnExit(e);
+        graphTimer?.Stop(); feedCancellation?.Cancel(); tray?.Dispose(); manager?.Dispose(); http.Dispose(); base.OnExit(e);
     }
 }

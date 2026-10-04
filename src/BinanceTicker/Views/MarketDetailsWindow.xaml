@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:BinanceTicker.Controls"
         Title="行情詳情" Icon="/BinanceTicker;component/Assets/app.ico"
-        Width="520" Height="600" MinWidth="380" MinHeight="340"
+        Width="520" Height="720" MinWidth="380" MinHeight="340"
         WindowStartupLocation="Manual" FontFamily="Segoe UI, Microsoft JhengHei" FontSize="13"
         Background="{DynamicResource SettingsBackground}" Foreground="{DynamicResource SettingsText}">
     <Window.Resources>
