@@ -77,7 +77,7 @@ public partial class App : Application
         marketDetails.OpenSymbolsChanged += UpdateHistoryDemand;
         window.MarketDetailsRequested += OpenMarketDetails;
         window.IsVisibleChanged += MarketVisibilityChanged;
-        ticker.SparklinePreferencesChanged += SaveSparklinePreferences;
+        ticker.WatchlistPreferencesChanged += PersistWatchlistPreferences;
         graphTimer = new(TimeSpan.FromSeconds(1), System.Windows.Threading.DispatcherPriority.Background,
             (_, _) => RefreshMarketGraphs(), Dispatcher);
         graphTimer.Stop();
@@ -98,7 +98,7 @@ public partial class App : Application
         var main = tickerWindow?.IsVisible == true && ticker.ShowSparkline
             ? ticker.Prices.Select(r => r.Symbol) : Enumerable.Empty<string>();
         var details = marketDetails?.OpenSymbols ?? Array.Empty<string>();
-        var enabled = settings.Symbols.Where(s => s.Enabled).Select(s => s.Symbol).ToHashSet(StringComparer.Ordinal);
+        var enabled = MarketDemand.Quotes(settings).ToHashSet(StringComparer.Ordinal);
         return main.Concat(details).Where(enabled.Contains).Distinct(StringComparer.Ordinal).ToArray();
     }
     private void UpdateHistoryDemand()
@@ -106,12 +106,14 @@ public partial class App : Application
         if (exiting || marketHistory is null) return;
         var demanded = GetHistoryDemand();
         marketHistory.SetDemand(demanded);
-        if (demanded.Length > 0) graphTimer?.Start(); else graphTimer?.Stop();
+        if (demanded.Length > 0 || settings.Holdings.Count>0) graphTimer?.Start(); else graphTimer?.Stop();
     }
     private void RefreshMarketGraphs()
     {
-        if (exiting || marketHistory is null) return;
+        if (exiting) return;
         var now = DateTimeOffset.UtcNow;
+        ticker.RefreshPortfolio(now);
+        if(marketHistory is null)return;
         var demanded = GetHistoryDemand().ToHashSet(StringComparer.Ordinal);
         foreach (var row in ticker.Prices.Where(r => demanded.Contains(r.Symbol)))
             row.UpdateHistory(candleCache.GetSnapshot(row.Symbol, now), marketHistory.GetState(row.Symbol),
@@ -160,6 +162,8 @@ public partial class App : Application
         // A settings window opened before a theme switch must preserve the latest theme.
         updated.Ui.Theme = settings.Ui.Theme;
         settingsWindow?.ViewModel.PreserveUneditedSparklinePreferences(updated, settings);
+        settingsWindow?.ViewModel.PreserveUneditedWatchlistPreferences(updated,settings);
+        WatchlistSettings.Normalize(updated);
         try
         {
             using var desktopChange = desktopPreferences?.Prepare(updated, updated.StartWithWindows || updated.StartWithWindows != settings.StartWithWindows);
@@ -172,9 +176,10 @@ public partial class App : Application
         foreach (var symbol in priceAlertWindows.Keys.ToArray())
             if (!settings.Symbols.Any(s => s.Symbol == symbol)) priceAlertWindows[symbol].Close();
         RefreshAlertWindows();
-        marketDetails?.CloseUnavailable(settings.Symbols.Where(s => s.Enabled).Select(s => s.Symbol).ToArray());
+        marketDetails?.CloseUnavailable(MarketDemand.Quotes(settings));
         ticker.Configure(settings); manager!.Apply(settings); tray!.SetMode(settings.Mode);
-        await RestartFeedAsync();
+        if(MarketDemandChanged(settings))await RestartFeedAsync();
+        else { UpdateHistoryDemand();RefreshMarketGraphs(); }
         if (!exiting) manager.Show();
         return true;
     }
@@ -226,7 +231,8 @@ public partial class App : Application
             var generation = ++feedGeneration;
             void OnUi(Action action) => Dispatcher.BeginInvoke(() =>
             { if (!exiting && !token.IsCancellationRequested && generation == feedGeneration) action(); });
-            var symbols = settings.Symbols.Where(s => s.Enabled).OrderBy(s => s.Order).Select(s => s.Symbol).ToArray();
+            var symbols = MarketDemand.Quotes(settings);
+            subscribedSymbols=symbols;
             if (marketHistory is not null) await marketHistory.ConfigureAsync(symbols);
             if (exiting) return;
             ticker.SetStatus(ConnectionStatus.Connecting);
@@ -292,7 +298,7 @@ public partial class App : Application
         exiting = true;
         hotkeys?.Dispose();
         graphTimer?.Stop();
-        ticker.SparklinePreferencesChanged -= SaveSparklinePreferences;
+        ticker.WatchlistPreferencesChanged -= PersistWatchlistPreferences;
         if (tickerWindow is not null)
         {
             tickerWindow.MarketDetailsRequested -= OpenMarketDetails;
