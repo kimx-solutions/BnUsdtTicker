@@ -12,4 +12,18 @@ internal static class CandleFixtures
             start.AddMinutes(i + 1).AddMilliseconds(-1).ToUnixTimeMilliseconds(), "105", 1, "1", "105", "0" }));
     public static Dictionary<string, string> Query(Uri uri) => uri.Query.TrimStart('?').Split('&').Select(p => p.Split('=', 2))
         .ToDictionary(p => p[0], p => Uri.UnescapeDataString(p[1]));
+    public static string StreamJson(CandlePrice candle) => JsonSerializer.Serialize(new Dictionary<string, object>
+    {
+        ["data"] = new Dictionary<string, object>
+        {
+            ["e"] = "kline", ["E"] = candle.UpdatedAt.ToUnixTimeMilliseconds(), ["s"] = candle.Symbol,
+            ["k"] = new Dictionary<string, object>
+            {
+                ["s"] = candle.Symbol, ["i"] = "1m", ["t"] = candle.OpenTime.ToUnixTimeMilliseconds(), ["T"] = candle.CloseTime.ToUnixTimeMilliseconds(),
+                ["o"] = candle.Open.ToString(System.Globalization.CultureInfo.InvariantCulture), ["h"] = candle.High.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                ["l"] = candle.Low.ToString(System.Globalization.CultureInfo.InvariantCulture), ["c"] = candle.Close.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                ["v"] = candle.Volume.ToString(System.Globalization.CultureInfo.InvariantCulture), ["x"] = candle.IsClosed
+            }
+        }
+    });
 }
