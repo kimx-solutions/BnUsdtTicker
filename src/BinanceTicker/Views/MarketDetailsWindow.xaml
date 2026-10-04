@@ -34,12 +34,14 @@
             <Border Background="{DynamicResource SettingsSurface}" BorderBrush="{DynamicResource SettingsBorder}" BorderThickness="1" CornerRadius="6" Padding="14">
                 <StackPanel>
                     <TextBlock Text="價格走勢 · 1 分鐘收盤價" Foreground="{DynamicResource SettingsMuted}" FontSize="11" />
-                    <controls:SparklineControl Series="{Binding Row.Series}" Height="120" Margin="0,12,0,8" AutomationProperties.Name="所選時段價格走勢" />
+                    <controls:SparklineControl Series="{Binding Row.Series}" Height="120" Margin="0,12,0,8" ToolTip="{Binding Row.SparklineToolTip}" AutomationProperties.Name="所選時段價格走勢" />
                     <Grid>
                         <TextBlock Text="{Binding Row.Series.Start.LocalDateTime, StringFormat={}{0:MM/dd HH:mm}}" Foreground="{DynamicResource SettingsMuted}" FontSize="10" />
                         <TextBlock Text="{Binding Row.Series.End.LocalDateTime, StringFormat={}{0:MM/dd HH:mm}}" Foreground="{DynamicResource SettingsMuted}" FontSize="10" HorizontalAlignment="Right" />
                     </Grid>
                     <TextBlock Text="{Binding Row.HistoryStatusText}" Foreground="{DynamicResource ThemeWarning}" TextWrapping="Wrap" FontSize="11" Margin="0,8,0,0" />
+                    <TextBlock Text="{Binding Row.HistoryCoverageText}" Foreground="{DynamicResource SettingsMuted}" TextWrapping="Wrap" FontSize="10" Margin="0,6,0,0" />
+                    <TextBlock Text="{Binding Row.HistoryUpdatedText}" Foreground="{DynamicResource SettingsMuted}" FontSize="10" Margin="0,4,0,0" />
                 </StackPanel>
             </Border>
             <Grid Margin="0,20,0,0">

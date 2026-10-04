@@ -2,7 +2,7 @@
 
 - 日期：2026-10-04（Asia/Taipei）
 - 來源：[GitHub issue #6](https://github.com/kimx-solutions/BnUsdtTicker/issues/6)
-- 狀態：使用者已確認介面與共用資料方案，並以「開始」確認本正式規格；實作計畫待審閱。
+- 狀態：使用者已確認規格及 Native 執行；實作、獨立審查修正與驗證完成，詳見 docs/verification.md。
 - 開發起點：`e8166c14a9237af0ba6db3952dc5f034920cef78`。
 
 ## 1. 目的與已確認的方案

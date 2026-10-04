@@ -36,6 +36,12 @@ public sealed class TickerRowViewModel(string symbol) : ObservableObject
     public SparklineSeries? Series { get => series; private set => Set(ref series, value); }
     public string QuoteStatusText { get => quoteStatusText; private set => Set(ref quoteStatusText, value); }
     public string HistoryStatusText { get => historyStatusText; private set => Set(ref historyStatusText, value); }
+    private string historyUpdatedText = "等待走勢資料";
+    private string historyCoverageText = "尚無有效走勢資料";
+    private string sparklineToolTip = "等待走勢資料";
+    public string HistoryUpdatedText { get => historyUpdatedText; private set => Set(ref historyUpdatedText, value); }
+    public string HistoryCoverageText { get => historyCoverageText; private set => Set(ref historyCoverageText, value); }
+    public string SparklineToolTip { get => sparklineToolTip; private set => Set(ref sparklineToolTip, value); }
     public string HighPriceText => FormatOptional(price?.HighPrice24h);
     public string LowPriceText => FormatOptional(price?.LowPrice24h);
     public string VolumeText => FormatOptional(price?.Volume24h, Asset);
@@ -51,6 +57,11 @@ public sealed class TickerRowViewModel(string symbol) : ObservableObject
             status != ConnectionStatus.Connected ? "連線中斷 · 保留最後報價" :
             now - new DateTimeOffset(price.UpdatedAt.ToUniversalTime()) > TimeSpan.FromSeconds(60) ? "報價逾期 · 保留最後報價" : "即時報價";
         var latest = candles.Count == 0 ? (DateTimeOffset?)null : candles.Max(c => c.UpdatedAt);
+        HistoryUpdatedText = latest is null ? "等待走勢資料" : "走勢更新於 " + latest.Value.ToLocalTime().ToString("MM/dd HH:mm:ss");
+        var points = Series.Segments.SelectMany(s => s.Points).ToArray();
+        HistoryCoverageText = points.Length == 0 ? "尚無有效走勢資料" :
+            "有效資料 " + points.Min(p => p.Time).ToLocalTime().ToString("MM/dd HH:mm:ss") + " — " +
+            points.Max(p => p.Time).ToLocalTime().ToString("MM/dd HH:mm:ss");
         HistoryStatusText = state.Status switch
         {
             HistoryLoadStatus.Loading => "走勢資料載入中…",
@@ -61,6 +72,9 @@ public sealed class TickerRowViewModel(string symbol) : ObservableObject
             _ when !Series.IsComplete => "部分走勢資料",
             _ => ""
         };
+        SparklineToolTip = range + " 走勢 · " + (HistoryStatusText.Length == 0 ? "完整資料" : HistoryStatusText) +
+            "\n" + HistoryCoverageText + "\n" + HistoryUpdatedText +
+            "\n曲線顏色依所選時段方向；旁邊數值為 Binance 滾動 24h 漲跌幅。";
     }
 
     public bool Update(TickerPrice value)

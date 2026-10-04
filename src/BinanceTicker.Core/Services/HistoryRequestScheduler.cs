@@ -23,8 +23,6 @@ public sealed class HistoryRequestScheduler
             try
             {
                 var response = await SendOnceAsync(uri, token).ConfigureAwait(false);
-                if (response.StatusCode is HttpStatusCode.TooManyRequests || (int)response.StatusCode == 418)
-                    Pause(response);
                 var transient = (int)response.StatusCode >= 500 || response.StatusCode == HttpStatusCode.TooManyRequests || (int)response.StatusCode == 418;
                 if (!transient || attempt == RetrySeconds.Length) return response;
                 response.Dispose();
@@ -57,18 +55,24 @@ public sealed class HistoryRequestScheduler
                 }
             }
             finally { starts.Release(); }
-            return await client.GetAsync(uri, token).ConfigureAwait(false);
+            var response = await client.GetAsync(uri, token).ConfigureAwait(false);
+            if (response.StatusCode == HttpStatusCode.TooManyRequests || (int)response.StatusCode == 418)
+                Pause(response);
+            return response;
         }
         finally { slots.Release(); }
     }
 
     private void Pause(HttpResponseMessage response)
     {
-        var now = clock.GetUtcNow();
-        var retry = response.Headers.RetryAfter;
-        var until = retry?.Date ?? (retry?.Delta is { } delta && delta > TimeSpan.Zero && delta < DateTimeOffset.MaxValue - now
-            ? now + delta : now.AddSeconds(60));
-        if (until <= now) until = now.AddSeconds(60);
-        lock (gate) { if (until > pausedUntil) pausedUntil = until; }
+        lock (gate)
+        {
+            var now = clock.GetUtcNow();
+            var retry = response.Headers.RetryAfter;
+            var until = retry?.Date ?? (retry?.Delta is { } delta && delta > TimeSpan.Zero && delta < DateTimeOffset.MaxValue - now
+                ? now + delta : now.AddSeconds(60));
+            if (until <= now) until = now.AddSeconds(60);
+            if (until > pausedUntil) pausedUntil = until;
+        }
     }
 }

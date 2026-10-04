@@ -5,6 +5,23 @@ namespace BinanceTicker.Tests;
 public sealed class MarketVisualizationViewModelTests
 {
     [Fact]
+    public void GraphTooltipReportsActualCoverageAndHistoryTimestampSeparateFromQuote()
+    {
+        var now=CandleFixtures.Now; var row=new TickerRowViewModel("BTCUSDT");
+        row.Update(new("BTCUSDT",100,-5,now.UtcDateTime));
+        Update(row,[CandleFixtures.Minute(now.AddMinutes(-11)),CandleFixtures.Minute(now.AddMinutes(-10))],new(HistoryLoadStatus.Loaded),now);
+        var property=row.GetType().GetProperty("HistoryUpdatedText"); Assert.NotNull(property);
+        var updated=(string)property.GetValue(row)!;
+        Assert.Contains(now.AddMinutes(-9).ToLocalTime().ToString("HH:mm:ss"),updated);
+        Assert.DoesNotContain(now.ToLocalTime().ToString("HH:mm:ss"),updated);
+        dynamic r=row;
+        Assert.Contains(now.AddMinutes(-11).AddMilliseconds(59999).ToLocalTime().ToString("HH:mm:ss"),(string)r.HistoryCoverageText);
+        Assert.Contains("1h",(string)r.SparklineToolTip);
+        Assert.Contains("24h",(string)r.SparklineToolTip);
+        Assert.Contains("逾期",(string)r.SparklineToolTip);
+        Assert.Contains((string)r.HistoryCoverageText,(string)r.SparklineToolTip);
+    }
+    [Fact]
     public void RangeSwitchReusesRowsAndSnapshots()
     {
         var vm = new TickerViewModel(); vm.Configure(new AppSettings());

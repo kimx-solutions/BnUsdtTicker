@@ -22,6 +22,8 @@ public sealed class SparklineControl : FrameworkElement
     protected override void OnRender(DrawingContext drawing)
     {
         base.OnRender(drawing);
+        if (ActualWidth > 0 && ActualHeight > 0)
+            drawing.DrawRectangle(Brushes.Transparent, null, new Rect(RenderSize));
         var series = Series;
         if (ActualWidth <= 2 || ActualHeight <= 4 || series is null || !series.HasData || series.End <= series.Start) return;
         var points = series.Segments.SelectMany(s=>s.Points).ToArray();

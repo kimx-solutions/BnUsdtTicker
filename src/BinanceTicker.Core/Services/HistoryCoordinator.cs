@@ -12,6 +12,7 @@ public sealed class HistoryCoordinator(IBinanceHistoryService history, CandleCac
     private HashSet<string> enabled = [];
     private HashSet<string> demand = [];
     private readonly HashSet<string> refreshNeeded = [];
+    private readonly Dictionary<string, DateTimeOffset> recoveryStarts = new();
     private readonly Dictionary<string, HistoryLoadState> states = new();
     private readonly Dictionary<string, Task> tasks = new();
     private CancellationTokenSource lifetime = new();
@@ -47,6 +48,7 @@ public sealed class HistoryCoordinator(IBinanceHistoryService history, CandleCac
                 enabled = normalized;
                 cache.Configure(normalized);
                 foreach (var symbol in states.Keys.Except(normalized).ToArray()) states.Remove(symbol);
+                foreach (var symbol in recoveryStarts.Keys.Except(normalized).ToArray()) recoveryStarts.Remove(symbol);
                 foreach (var symbol in normalized)
                 {
                     var state = states.GetValueOrDefault(symbol);
@@ -54,7 +56,11 @@ public sealed class HistoryCoordinator(IBinanceHistoryService history, CandleCac
                 }
                 tasks.Clear();
                 refreshNeeded.Clear();
-                foreach (var symbol in normalized.Where(s => states[s].LastLoadedAt is not null)) refreshNeeded.Add(symbol);
+                foreach (var symbol in normalized.Where(s => states[s].LastLoadedAt is not null))
+                {
+                    refreshNeeded.Add(symbol);
+                    RememberRecoveryStart(symbol, clock.GetUtcNow());
+                }
                 lifetime = new();
                 accepting = !stop;
                 connection = ConnectionStatus.Connecting;
@@ -90,7 +96,7 @@ public sealed class HistoryCoordinator(IBinanceHistoryService history, CandleCac
             var version = generation;
             var revision = connectionRevision;
             var token = lifetime.Token;
-            task = Task.Run(() => LoadAsync(symbol, version, revision, token));
+            task = Task.Run(() => LoadAsync(symbol, version, revision, token, refresh));
             tasks[symbol] = task;
         }
         Changed?.Invoke(symbol);
@@ -112,6 +118,7 @@ public sealed class HistoryCoordinator(IBinanceHistoryService history, CandleCac
             {
                 connectionRevision++;
                 refreshNeeded.UnionWith(enabled);
+                foreach (var symbol in enabled) RememberRecoveryStart(symbol, clock.GetUtcNow());
             }
             connection = status;
             if (status == ConnectionStatus.Connected) needed = demand.Where(refreshNeeded.Contains).ToArray();
@@ -119,7 +126,19 @@ public sealed class HistoryCoordinator(IBinanceHistoryService history, CandleCac
         foreach (var symbol in needed) _ = EnsureLoadedAsync(symbol);
     }
 
-    private async Task LoadAsync(string symbol, long version, long revision, CancellationToken token)
+    // Called under gate before resumed streaming can move the recovery boundary forward.
+    private void RememberRecoveryStart(string symbol, DateTimeOffset now)
+    {
+        var lastClosed = cache.GetSnapshot(symbol, now).LastOrDefault(c => c.IsClosed);
+        var checkpoint = lastClosed?.OpenTime ??
+            (states.GetValueOrDefault(symbol)?.LastLoadedAt is { } loaded
+                ? DateTimeOffset.FromUnixTimeMilliseconds(loaded.ToUnixTimeMilliseconds() / 60000 * 60000).AddMinutes(-1)
+                : (DateTimeOffset?)null);
+        if (checkpoint is { } start && (!recoveryStarts.TryGetValue(symbol, out var previous) || start < previous))
+            recoveryStarts[symbol] = start;
+    }
+
+    private async Task LoadAsync(string symbol, long version, long revision, CancellationToken token, bool fullRefresh)
     {
         var changed = false;
         try
@@ -129,10 +148,9 @@ public sealed class HistoryCoordinator(IBinanceHistoryService history, CandleCac
             lock (gate)
             {
                 if (version != generation || token.IsCancellationRequested) return;
-                if (states[symbol].LastLoadedAt is not null)
+                if (!fullRefresh && states[symbol].LastLoadedAt is not null && recoveryStarts.TryGetValue(symbol, out var recovery))
                 {
-                    var lastClosed = cache.GetSnapshot(symbol, end).LastOrDefault(c => c.IsClosed);
-                    if (lastClosed is not null && lastClosed.OpenTime > start) start = lastClosed.OpenTime;
+                    if (recovery > start) start = recovery;
                 }
             }
             var candles = await history.GetCandlesAsync(symbol, start, end, token);
@@ -141,7 +159,11 @@ public sealed class HistoryCoordinator(IBinanceHistoryService history, CandleCac
                 if (version != generation || token.IsCancellationRequested || !enabled.Contains(symbol)) return;
                 foreach (var candle in candles) cache.Merge(candle, clock.GetUtcNow());
                 states[symbol] = new(HistoryLoadStatus.Loaded, LastLoadedAt: end);
-                if (revision == connectionRevision) refreshNeeded.Remove(symbol);
+                if (revision == connectionRevision)
+                {
+                    refreshNeeded.Remove(symbol);
+                    recoveryStarts.Remove(symbol);
+                }
                 changed = true;
             }
         }

@@ -204,7 +204,7 @@
                                     </TextBlock>
                                     <StackPanel Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="3" Margin="0,4,0,0"
                                                 Visibility="{Binding DataContext.ShowSparkline, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolVisibility}}">
-                                        <controls:SparklineControl Series="{Binding Series}" Height="32" AutomationProperties.Name="價格走勢" />
+                                        <controls:SparklineControl Series="{Binding Series}" Height="32" ToolTip="{Binding SparklineToolTip}" AutomationProperties.Name="價格走勢" />
                                         <TextBlock Text="{Binding HistoryStatusText}" FontSize="10" Foreground="{DynamicResource TickerMuted}" TextWrapping="Wrap">
                                             <TextBlock.Style><Style TargetType="TextBlock"><Style.Triggers><Trigger Property="Text" Value=""><Setter Property="Visibility" Value="Collapsed" /></Trigger></Style.Triggers></Style></TextBlock.Style>
                                         </TextBlock>

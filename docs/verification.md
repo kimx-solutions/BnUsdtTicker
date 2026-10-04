@@ -5,7 +5,7 @@
 - Branch: `codex/issue-6-implementation`, based on `71c007e`.
 - Added shared 1-minute history, 1h/24h sparklines, separate market details, and
   default-browser Binance spot links. Ticker width remains 390 DIP.
-- Release build: zero warnings/errors. Release suite: 134 passed, zero failed/skipped.
+- Release build: zero warnings/errors. Release suite: 139 passed, zero failed/skipped.
 - Self-contained Windows x64 output: `artifacts/issue-6-publish/BinanceTicker.exe`.
 - Controlled tests cover pagination beyond 1000 bars, retries/shared 429/418 pause,
   request concurrency/spacing, immutable bounded snapshots, stream/REST races,
@@ -24,6 +24,14 @@
   hard cap 1500), rather than filling a target of 1500 older bars; new visualization
   STA checks share the existing lifecycle test because WPF permits only one
   Application per process.
+- One independent whole-branch review confirmed a slot-release/pause race and a
+  hidden-view recovery gap; both were reproduced RED and fixed GREEN. Added short
+  and >24h hidden outages, manual partial-history retry, and queued asynchronous
+  rate-limit regressions. Coverage/freshness tooltip feedback was promoted from
+  Minor to Important because users need actual data age/range separately from
+  quote timestamps; formatting and actual WPF tooltip bindings/hit area were
+  verified RED→GREEN. Full suite after the fix pass: 139/139. No deferred findings
+  or declined-to-judge behaviors.
 
 Physical mouse dragging/focus on real mixed-DPI monitors, OS display of notifications,
 and opening the real default browser remain manual acceptance checks. Tests exercise

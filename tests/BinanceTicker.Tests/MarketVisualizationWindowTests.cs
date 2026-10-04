@@ -29,6 +29,10 @@ internal static class MarketVisualizationWindowTests
         try
         {
             Render(window, "market-dark-1h.png");
+            var graphType=typeof(TickerWindow).Assembly.GetType("BinanceTicker.Controls.SparklineControl"); Assert.NotNull(graphType);
+            var compactGraph=Descendants<FrameworkElement>(window).First(element=>element.GetType()==graphType);
+            Assert.Equal(vm.Prices[0].GetType().GetProperty("SparklineToolTip")?.GetValue(vm.Prices[0]),compactGraph.ToolTip);
+            Assert.Same(compactGraph,VisualTreeHelper.HitTest(compactGraph,new Point(compactGraph.ActualWidth/2,1))?.VisualHit);
             var day = Buttons(window).SingleOrDefault(b => ReferenceEquals(b.Command, vm.SelectDayCommand));
             Assert.NotNull(day); Invoke(day, app); Assert.Equal("24h", vm.SparklineRange);
             foreach (var row in vm.Prices) row.UpdateHistory(candles,new(HistoryLoadStatus.Loaded),ConnectionStatus.Connected,vm.SparklineRange,now);
@@ -51,6 +55,7 @@ internal static class MarketVisualizationWindowTests
                 var texts = Descendants<TextBlock>(details).Select(t=>t.Text).ToArray();
                 Assert.Contains(detailsVm.Row.VolumeText,texts); Assert.Contains(detailsVm.Row.QuoteVolumeText,texts);
                 Assert.Contains(detailsVm.Row.HistoryStatusText,texts);
+                Assert.Contains((string)detailsVm.Row.GetType().GetProperty("HistoryUpdatedText")!.GetValue(detailsVm.Row)!,texts);
                 ThemeService.Apply(ColorTheme.Dark); Render(details,"market-details-failed-dark.png");
             }
             finally { details.Close(); }
