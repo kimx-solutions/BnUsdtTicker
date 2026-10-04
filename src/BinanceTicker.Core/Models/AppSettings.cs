@@ -12,6 +12,9 @@ public sealed class AppSettings
     public HotkeySettings Hotkey { get; set; } = new();
     public WindowSettings Window { get; set; } = new();
     public UiSettings Ui { get; set; } = new();
+    public List<WatchlistGroup>? Watchlists { get; set; }
+    public string? ActiveWatchlistId { get; set; }
+    public List<HoldingSetting> Holdings { get; set; } = [];
     public List<SymbolSetting> Symbols { get; set; } =
     [
         new() { Symbol = "BTCUSDT", Order = 1 },
@@ -26,7 +29,10 @@ public sealed class AppSettings
         Window = new() { Left = Window.Left, Top = Window.Top, Width = Window.Width, Height = Window.Height, Opacity = Window.Opacity },
         Ui = new() { CompactMode = Ui.CompactMode, ShowChangePercent = Ui.ShowChangePercent, Theme = Ui.Theme,
             ShowSparkline = Ui.ShowSparkline, SparklineRange = Ui.SparklineRange },
-        Symbols = Symbols.Select(s => s.Copy()).ToList()
+        Symbols = Symbols.Select(s => s.Copy()).ToList(),
+        Watchlists = Watchlists?.Select(g => g.Copy()).ToList(),
+        ActiveWatchlistId = ActiveWatchlistId,
+        Holdings = Holdings.Select(h => h.Copy()).ToList()
     };
 }
 
@@ -48,6 +54,8 @@ public sealed class HotkeySettings
 
 public sealed class UiSettings
 {
+    public UiSettings Copy() => new() { ShowSparkline=ShowSparkline, SparklineRange=SparklineRange,
+        Theme=Theme, ShowChangePercent=ShowChangePercent, CompactMode=CompactMode };
     public bool ShowSparkline { get; set; } = true;
     public string SparklineRange { get; set; } = "1h";
     public ColorTheme Theme { get; set; } = ColorTheme.Dark;
