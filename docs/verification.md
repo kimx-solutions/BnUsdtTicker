@@ -174,3 +174,29 @@ cannot launch itself. Startup registration and JSON settings are not atomic acro
 ### PR #12 conflict resolution
 
 Merged main f70895e (issue #7) into the issue #8 branch. Preserved both tray entries, desktop preference initialization, alert-history subscriptions and all acceptance checks. Full Release test suite: 201 passed, zero failed/skipped. Independent integration review found no actionable findings.
+
+## Issue #9 watchlists and shared holdings — 2026-10-04
+
+- Branch: `codex/issue-9-watchlists-portfolio`. Baseline: 201 tests passed.
+- Migration/settings tests cover legacy order and disabled members, existing upper and short-term alert state,
+  empty legacy lists, empty new groups, invalid names, active-group fallback, deep copies and round trips.
+- Decimal calculation tests cover gains/losses, precision, zero quantity/cost, missing quotes, disconnected and
+  expired quotes, weighted summaries, symbol deduplication, partial subtotals and row/aggregate overflow.
+- Editor tests cover independent member order/visibility, shared holdings, cancellation, group deletion,
+  last-group protection, orphan holdings, clearing, invalid input and concurrent preference preservation.
+- Ticker/App tests cover global quote acceptance outside the selected group, stale-quote rejection,
+  group-specific sorting/visibility, hidden-member totals, no feed restart on group switches or cost edits,
+  alert-state retention and failed preference persistence restoring the original selection.
+- WPF tests run within the existing single STA Application lifecycle; this avoids creating competing WPF
+  Application instances. The lifecycle smoke exercises group selection, rendered group names, summary
+  bindings, long lists, 360 × 260 DIP ticker, small settings, fixed save/cancel controls and both themes.
+- Preview PNGs are generated in `artifacts/issue-9/previews`; visual inspection caught and corrected custom
+  ComboBox selection rendering and foreground inheritance in the holding editor.
+- Release build: zero warnings/errors. Complete suite: 246 passed, zero failed/skipped.
+- Windows x64 self-contained publish verified at `artifacts/issue-9/publish/BinanceTicker.exe`.
+
+Manual acceptance: use real Binance quotes to compare edited holdings; restart with multiple groups,
+switch groups while an off-screen alert triggers, disconnect/reconnect and check stale labels, and use
+native mouse/keyboard on the group dropdown and nested settings scroll areas. Tests do not edit user
+settings or contact Binance. No account connection, trading, startup-setting change or release publication
+is performed during verification.

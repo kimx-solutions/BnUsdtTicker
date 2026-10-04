@@ -43,6 +43,12 @@ public partial class SettingsWindow : Window
             item.IsSelected = true;
     }
     private void CancelClicked(object sender, RoutedEventArgs e) => Close();
+    private void DeleteWatchlistClicked(object sender, RoutedEventArgs e)
+    {
+        if(!ViewModel.RemoveWatchlistCommand.CanExecute(null)) { ViewModel.Error="至少須保留一個分組。";return; }
+        if(MessageBox.Show(this,SettingsViewModel.DeleteWatchlistExplanation,"刪除分組",MessageBoxButton.YesNo,MessageBoxImage.Question)==MessageBoxResult.Yes)
+            ViewModel.RemoveWatchlistCommand.Execute(null);
+    }
     private async void SaveClicked(object sender, RoutedEventArgs e)
     {
         if (saving || !ViewModel.CanSave) return;

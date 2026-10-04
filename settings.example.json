@@ -19,5 +19,17 @@
     { "symbol": "ETHUSDT", "enabled": true, "order": 2 },
     { "symbol": "ENAUSDT", "enabled": true, "order": 3 }
   ],
-  "ui": { "theme": "Dark", "showChangePercent": true, "compactMode": true, "showSparkline": true, "sparklineRange": "1h" }
+  "ui": { "theme": "Dark", "showChangePercent": true, "compactMode": true, "showSparkline": true, "sparklineRange": "1h" },
+  "activeWatchlistId": "long-term",
+  "watchlists": [
+    { "id": "long-term", "name": "長期持有",
+      "members": [ { "symbol": "BTCUSDT", "enabled": true, "order": 1 }, { "symbol": "ETHUSDT", "enabled": true, "order": 2 } ],
+      "ui": { "showChangePercent": true, "compactMode": true, "showSparkline": true, "sparklineRange": "24h" },
+      "sortColumn": null, "sortDescending": false },
+    { "id": "short-term", "name": "短線觀察",
+      "members": [ { "symbol": "ENAUSDT", "enabled": true, "order": 1 }, { "symbol": "BTCUSDT", "enabled": true, "order": 2 } ],
+      "ui": { "showChangePercent": true, "compactMode": true, "showSparkline": false, "sparklineRange": "1h" },
+      "sortColumn": null, "sortDescending": false }
+  ],
+  "holdings": [ { "symbol": "BTCUSDT", "quantity": 0.1, "averageCost": 80000 }, { "symbol": "ETHUSDT", "quantity": 1.5, "averageCost": 2500 } ]
 }

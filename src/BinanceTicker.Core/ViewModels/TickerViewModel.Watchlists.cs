@@ -9,6 +9,8 @@ public sealed partial class TickerViewModel
     private readonly Dictionary<string,TickerRowViewModel> rows=new(StringComparer.Ordinal);
     private readonly Dictionary<string,TickerPrice> quotes=new(StringComparer.Ordinal);
     private string watchlistError="";
+    private bool showHoldings;
+    public bool ShowHoldings { get=>showHoldings;set=>Set(ref showHoldings,value); }
     public string WatchlistError { get=>watchlistError;set=>Set(ref watchlistError,value); }
     public ObservableCollection<WatchlistGroup> Watchlists { get; private set; }=[];
     public string? ActiveWatchlistId => watchlistSettings?.ActiveWatchlistId;

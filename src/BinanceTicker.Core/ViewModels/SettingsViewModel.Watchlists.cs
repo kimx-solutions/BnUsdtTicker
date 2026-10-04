@@ -9,6 +9,7 @@ public sealed partial class SettingsViewModel
     private string watchlistName="";
     public ObservableCollection<WatchlistGroup> Watchlists { get; private set; }=[];
     public ObservableCollection<HoldingEditorViewModel> Holdings { get; }=[];
+    public bool CanRemoveWatchlist => Watchlists.Count>1;
     public string WatchlistName { get=>watchlistName;set=>Set(ref watchlistName,value); }
     public const string DeleteWatchlistExplanation="只刪除此分組及其成員檢視；共用持倉、其他分組與價格提醒會保留。按儲存後生效。";
     public RelayCommand AddWatchlistCommand { get; private set; }=null!;
@@ -26,7 +27,7 @@ public sealed partial class SettingsViewModel
             WatchlistName=value.Name;showSparkline=value.Ui.ShowSparkline;sparklineRange=value.Ui.SparklineRange;
             ShowChangePercent=value.Ui.ShowChangePercent;CompactMode=value.Ui.CompactMode;
             Notify(nameof(ShowSparkline));Notify(nameof(SparklineRange));Notify(nameof(ShowChangePercent));Notify(nameof(CompactMode));
-            SelectedSymbol=Symbols.FirstOrDefault();RemoveWatchlistCommand.Refresh();
+            SelectedSymbol=Symbols.FirstOrDefault();RemoveWatchlistCommand.Refresh();Notify(nameof(CanRemoveWatchlist));
         }
     }
     private void InitializeWatchlists()
