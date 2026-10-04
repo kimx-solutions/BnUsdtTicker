@@ -11,6 +11,6 @@ public sealed class NotificationService(Action<string, string> show) : INotifica
     {
         var side = entry.AlertType == AlertType.Upper ? "上限" : "下限";
         show($"{entry.Symbol} 價格提醒",
-            $"已到達{side}價格\n目前價格：{entry.TriggeredPrice.ToString("#,0.00##########################", CultureInfo.InvariantCulture)}\n設定價格：{entry.TargetPrice.ToString("#,0.############################", CultureInfo.InvariantCulture)}");
+            $"已到達{side}價格\n目前價格：{entry.TriggeredPrice.ToString("#,0.00##########################", CultureInfo.InvariantCulture)}\n設定價格：{entry.TargetPrice?.ToString("#,0.############################", CultureInfo.InvariantCulture)}");
     }
 }
