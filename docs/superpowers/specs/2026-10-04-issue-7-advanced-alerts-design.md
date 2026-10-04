@@ -2,7 +2,7 @@
 
 - 日期：2026-10-04（Asia/Taipei）
 - 來源：[GitHub issue #7](https://github.com/kimx-solutions/BnUsdtTicker/issues/7)
-- 狀態：使用者已同意聊天中的方案；本份具體規格待使用者審閱，尚未開始實作。
+- 狀態：使用者已確認方案及本份規格；實作計畫已整理待審閱，尚未開始功能實作。
 - 開發起點：`b0dc527`，目前分支為 `codex/issue-6-market-visualization`。
 
 ## 1. 目的與範圍
