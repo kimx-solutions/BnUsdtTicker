@@ -66,7 +66,7 @@ jobs:
           path: artifacts/test-results/*.trx
           if-no-files-found: ignore
 
-      - name: Publish self-contained Windows x64 app
+      - name: Publish single-file self-contained Windows x64 app
         env:
           APP_VERSION: ${{ steps.version.outputs.version }}
         run: >-
@@ -75,17 +75,18 @@ jobs:
           -p:Version=$env:APP_VERSION -p:DebugType=None -p:DebugSymbols=false
           --output artifacts/publish
 
-      - name: Package app and calculate SHA256
+      - name: Prepare executable and calculate SHA256
         run: |
           New-Item -ItemType Directory -Path artifacts/release -Force | Out-Null
-          Copy-Item -LiteralPath README.md, LICENSE, settings.example.json -Destination artifacts/publish
-          New-Item -ItemType Directory -Path artifacts/publish/docs/images -Force | Out-Null
-          Copy-Item -Path docs/images/*.png -Destination artifacts/publish/docs/images
-          $archiveName = "BinanceTicker-$env:RELEASE_TAG-win-x64.zip"
-          $archivePath = Join-Path artifacts/release $archiveName
-          Compress-Archive -Path artifacts/publish/* -DestinationPath $archivePath -Force
-          $hash = (Get-FileHash -LiteralPath $archivePath -Algorithm SHA256).Hash.ToLowerInvariant()
-          "$hash  $archiveName" | Set-Content -LiteralPath "$archivePath.sha256" -Encoding utf8NoBOM
+          $publishedFiles = @(Get-ChildItem -LiteralPath artifacts/publish -Recurse -File)
+          if ($publishedFiles.Count -ne 1 -or $publishedFiles[0].Name -ne 'BinanceTicker.exe') {
+            throw 'Expected a single published BinanceTicker.exe.'
+          }
+          $executableName = "BinanceTicker-$env:RELEASE_TAG-win-x64.exe"
+          $executablePath = Join-Path artifacts/release $executableName
+          Copy-Item -LiteralPath artifacts/publish/BinanceTicker.exe -Destination $executablePath
+          $hash = (Get-FileHash -LiteralPath $executablePath -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  $executableName" | Set-Content -LiteralPath "$executablePath.sha256" -Encoding utf8NoBOM
 
       - name: Upload release package
         uses: actions/upload-artifact@v7
@@ -105,26 +106,26 @@ jobs:
           if ($LASTEXITCODE -eq 0) {
             $release = $existing | ConvertFrom-Json
             $existingNames = @($release.assets | ForEach-Object { $_.name })
-            $archive = $assets | Where-Object Extension -eq '.zip'
+            $executable = $assets | Where-Object Extension -eq '.exe'
             $checksum = $assets | Where-Object Extension -eq '.sha256'
-            $hasArchive = $archive.Name -in $existingNames
+            $hasExecutable = $executable.Name -in $existingNames
             $hasChecksum = $checksum.Name -in $existingNames
-            if ($hasArchive -ne $hasChecksum) {
+            if ($hasExecutable -ne $hasChecksum) {
               $downloadDirectory = Join-Path $env:RUNNER_TEMP 'existing-release-assets'
               New-Item -ItemType Directory -Path $downloadDirectory -Force | Out-Null
-              if ($hasArchive) {
-                gh release download $env:RELEASE_TAG --pattern $archive.Name --dir $downloadDirectory --clobber
-                if ($LASTEXITCODE -ne 0) { throw 'Failed to download the existing ZIP.' }
-                $existingZip = Join-Path $downloadDirectory $archive.Name
-                $hash = (Get-FileHash -LiteralPath $existingZip -Algorithm SHA256).Hash.ToLowerInvariant()
-                "$hash  $($archive.Name)" | Set-Content -LiteralPath $checksum.FullName -Encoding utf8NoBOM
+              if ($hasExecutable) {
+                gh release download $env:RELEASE_TAG --pattern $executable.Name --dir $downloadDirectory --clobber
+                if ($LASTEXITCODE -ne 0) { throw 'Failed to download the existing executable.' }
+                $existingExecutable = Join-Path $downloadDirectory $executable.Name
+                $hash = (Get-FileHash -LiteralPath $existingExecutable -Algorithm SHA256).Hash.ToLowerInvariant()
+                "$hash  $($executable.Name)" | Set-Content -LiteralPath $checksum.FullName -Encoding utf8NoBOM
               } else {
                 gh release download $env:RELEASE_TAG --pattern $checksum.Name --dir $downloadDirectory --clobber
                 if ($LASTEXITCODE -ne 0) { throw 'Failed to download the existing checksum.' }
                 $expectedHash = ((Get-Content -LiteralPath (Join-Path $downloadDirectory $checksum.Name) -Raw).Trim() -split '\s+')[0]
-                $actualHash = (Get-FileHash -LiteralPath $archive.FullName -Algorithm SHA256).Hash
+                $actualHash = (Get-FileHash -LiteralPath $executable.FullName -Algorithm SHA256).Hash
                 if ($expectedHash -notmatch '^[a-fA-F0-9]{64}$' -or $expectedHash -ne $actualHash) {
-                  throw 'Existing checksum differs from the rebuilt ZIP. Remove the partial checksum asset or use a new version tag.'
+                  throw 'Existing checksum differs from the rebuilt executable. Remove the partial checksum asset or use a new version tag.'
                 }
               }
             }

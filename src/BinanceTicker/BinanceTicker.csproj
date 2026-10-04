@@ -3,6 +3,7 @@
   <ItemGroup>
     <ProjectReference Include="..\BinanceTicker.Core\BinanceTicker.Core.csproj" />
     <Resource Include="Assets\app.ico" />
+    <EmbeddedResource Include="..\..\LICENSE" LogicalName="BinanceTicker.LICENSE" />
   </ItemGroup>
 
   <PropertyGroup>
@@ -14,6 +15,12 @@
     <UseWindowsForms>true</UseWindowsForms>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(RuntimeIdentifier)' != ''">
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <DebugType>embedded</DebugType>
   </PropertyGroup>
 
 </Project>

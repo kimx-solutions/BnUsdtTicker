@@ -51,14 +51,14 @@ Windows 桌面視窗，顯示你選擇的幣種價格與 24 小時漲跌幅。
 
 [**前往 GitHub Releases 下載**](https://github.com/kimx-solutions/BnUsdtTicker/releases)
 
-版本發佈後，在 Release 的 **Assets** 下載 `BinanceTicker-v版本號-win-x64.zip`。
-發佈包適用於 Windows x64，內含 .NET 執行環境，不需要另外安裝 .NET。
+版本發佈後，在 Release 的 **Assets** 下載 `BinanceTicker-v版本號-win-x64.exe`。
+單一執行檔適用於 Windows x64，內含 .NET 執行環境，不需要另外安裝 .NET。
 
-1. 下載 ZIP，完整解壓縮到你喜歡的資料夾。
-2. 執行 `BinanceTicker.exe`，開始查看行情。
-3. 日後更新時，先從系統匣結束舊版，再解壓縮並開啟新版；本機設定會保留。
+1. 下載 EXE，放到你喜歡的資料夾。
+2. 直接執行下載的 `.exe`，開始查看行情。
+3. 日後更新時，先從系統匣結束舊版，再下載並開啟新版；本機設定會保留。
 
-同一頁亦提供 `.zip.sha256` 校驗檔，可用來確認下載檔案的 SHA256 是否相符。
+同一頁亦提供 `.exe.sha256` 校驗檔，可用來確認下載檔案的 SHA256 是否相符。
 
 ## 使用說明
 
@@ -284,7 +284,7 @@ Windows 工作管理員若停用了此啟動項，需在「啟動應用程式」
 
 本專案採用 [MIT License](LICENSE)，允許使用、修改、散布及商業使用，
 但必須保留原有著作權聲明與授權條款。
-隨發佈包附帶的第三方元件，仍適用各自的授權。
+執行檔內嵌本專案的 LICENSE；隨程式附帶的第三方元件，仍適用各自的授權。
 
 <details>
 <summary>給開發者：執行、建置、發佈與測試</summary>
@@ -311,8 +311,11 @@ dotnet test --configuration Release
 dotnet publish src/BinanceTicker --configuration Release --runtime win-x64 --self-contained true -o artifacts/publish
 ```
 
-執行 `artifacts/publish/BinanceTicker.exe`。自包含版本不需要另外安裝 .NET runtime。
-CI 在 Windows 上執行建置、測試及發佈封裝。
+執行 `artifacts/publish/BinanceTicker.exe`。指定 runtime 時，專案設定會將程式與原生程式庫
+合併為單一 EXE；自包含版本不需要另外安裝 .NET runtime。
+採用 [.NET 單一檔案發佈](https://learn.microsoft.com/en-us/dotnet/core/deploying/single-file/overview)，
+首次執行時會由 .NET 自動將原生程式庫解出到暫存位置，使用者無需手動解壓縮。
+CI 在 Windows 上執行建置、測試及發佈驗證。
 
 ## GitHub Release
 
@@ -324,25 +327,25 @@ git push origin v1.0.0
 ```
 
 `Release Windows app` workflow 會檢出該標籤的程式碼，依序還原、建置、測試、
-發佈 Windows x64 自包含版本，再建立 GitHub Release 與自動產生的版本說明。
+發佈 Windows x64 單一 EXE 自包含版本，再建立 GitHub Release 與自動產生的版本說明。
 版本號會寫入程式組件。`v1.0.0-beta.1` 等帶後綴的版本會標示為 Pre-release。
 一般 branch push/PR 使用原本 CI，版本 tag 使用 Release workflow。
 
 Release 附件：
 
-- `BinanceTicker-v1.0.0-win-x64.zip`：完整程式、.NET runtime、README、LICENSE 與設定範例。
-- `BinanceTicker-v1.0.0-win-x64.zip.sha256`：ZIP 的 SHA256 校驗值。
+- `BinanceTicker-v1.0.0-win-x64.exe`：完整程式與 .NET runtime，內嵌本專案 LICENSE。
+- `BinanceTicker-v1.0.0-win-x64.exe.sha256`：EXE 的 SHA256 校驗值。
 
-下載並完整解壓縮 ZIP，執行 `BinanceTicker.exe`，無需安裝 .NET。
+下載並直接執行 EXE，無需解壓縮或安裝 .NET。README 與設定範例可在原始碼中查看。
 Workflow 使用 GitHub 自動提供的 `GITHUB_TOKEN`，不需另外設定 PAT。
 
 亦可在 Actions → **Release Windows app** → **Run workflow** 輸入已推送的
 版本標籤。手動執行入口需要 workflow 存在於預設分支；請選擇包含此 workflow
 的分支。流程仍會建置輸入標籤的程式碼，標籤必須存在。
-重新執行時，已存在的附件會保留。若 ZIP 已上傳但校驗檔缺少，會下載原本的
-ZIP 產生相符校驗檔；若只剩校驗檔，會先核對重建 ZIP，確認一致才補上。
+重新執行時，已存在的附件會保留。若 EXE 已上傳但校驗檔缺少，會下載原本的
+EXE 產生相符校驗檔；若只剩校驗檔，會先核對重建 EXE，確認一致才補上。
 上次失敗留下的草稿會在附件齊全後正式發佈。
-測試結果與 ZIP 也會保存在該次 Actions run 的 artifacts 中。
+測試結果與發佈檔案也會保存在該次 Actions run 的 artifacts 中；GitHub Release 直接提供 EXE 附件。
 發佈採用 [GitHub CLI 的 Release 指令](https://cli.github.com/manual/gh_release_create)。
 
 ## 測試與實機驗收
