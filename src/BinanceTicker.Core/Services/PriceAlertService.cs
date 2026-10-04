@@ -69,11 +69,13 @@ public sealed class PriceAlertService : IPriceAlertService
                 if (at - previous > TimeSpan.FromSeconds(5)) ResetContinuity(item);
             }
             lastQuote[item.Symbol] = at;
-            EvaluatePrices(item, quote.Price, now, submitted);
             var lengths = new[] { item.Alert.Rise, item.Alert.Fall }.Where(c => c.ThresholdPercent is > 0)
                 .Select(c => c.WindowMinutes).ToArray();
-            if (lengths.Length == 0) { quotes.Clear(item.Symbol); return; }
-            if (!quotes.Add(quote, now, TimeSpan.FromMinutes(lengths.Max()))) return;
+            // Valid market observations are independent of persistence/shell submission failures.
+            var sampled = lengths.Length > 0 && quotes.Add(quote, now, TimeSpan.FromMinutes(lengths.Max()));
+            if (lengths.Length == 0) quotes.Clear(item.Symbol);
+            EvaluatePrices(item, quote.Price, now, submitted);
+            if (!sampled) return;
             foreach (var type in new[] { AlertType.Rise, AlertType.Fall })
             {
                 var condition = type == AlertType.Rise ? item.Alert.Rise : item.Alert.Fall;
@@ -220,6 +222,13 @@ public sealed class PriceAlertService : IPriceAlertService
             policy.LastTriggeredAt = previous?.LastTriggeredAt;
             policy.Armed = previous?.Armed ?? true;
             if (previous is not null && policy.Strategy != previous.Strategy && updated.Triggered(type)) policy.Armed = false;
+            if (live is not null && type is AlertType.Rise or AlertType.Fall)
+            {
+                var next = type == AlertType.Rise ? updated.Rise : updated.Fall;
+                var old = type == AlertType.Rise ? live.Rise : live.Fall;
+                if ((next.WindowMinutes != old.WindowMinutes || next.ThresholdPercent != old.ThresholdPercent) &&
+                    next.Triggered && next.Policy.Strategy == AlertStrategy.Repeat) next.Policy.Armed = false;
+            }
         }
         foreach (var reset in resets) Reset(updated, reset.Type);
         updated.Validate();
@@ -234,7 +243,6 @@ public sealed class PriceAlertService : IPriceAlertService
             {
                 starts[(symbol, type)] = clock();
                 next.ComparisonReady = false;
-                if (next.Triggered && next.Policy.Strategy == AlertStrategy.Repeat) next.Policy.Armed = false;
             }
         }
     }
@@ -267,14 +275,6 @@ public sealed class PriceAlertService : IPriceAlertService
                 ?? throw new InvalidOperationException("此幣種已移除，請關閉警示視窗。");
             var alert = updated.Copy();
             MergeState(alert, item.Alert, resets.Where(r => r.Symbol == symbol));
-            // Restart arming before saving, so the durable and live policy agree.
-            foreach (var type in new[] { AlertType.Rise, AlertType.Fall })
-            {
-                var next = type == AlertType.Rise ? alert.Rise : alert.Fall;
-                var old = type == AlertType.Rise ? item.Alert.Rise : item.Alert.Fall;
-                if ((next.WindowMinutes != old.WindowMinutes || next.ThresholdPercent != old.ThresholdPercent) && next.Triggered)
-                    next.Policy.Armed = false;
-            }
             var snapshot = settings.Copy(); snapshot.Symbols.Single(s => s.Symbol == symbol).Alert = alert;
             store.Save(snapshot);
             MarkChangedWindows(symbol, alert, item.Alert);

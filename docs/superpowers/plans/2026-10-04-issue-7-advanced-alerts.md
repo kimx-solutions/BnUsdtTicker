@@ -48,11 +48,11 @@
 - PriceAlertSettings 保留舊四欄，追加 UpperPolicy、LowerPolicy、Rise、Fall，Copy 深複製所有欄位。
 - AlertHistoryEntry 的 TargetPrice 改 nullable，末尾追加 optional WindowMinutes、ThresholdPercent、BaselinePrice、BaselineAt、QuoteAt、ChangePercent；舊五參數呼叫仍編譯。
 
-- [ ] 寫測試：舊 JSON 的 upperTriggered=true 讀回仍 true，策略 Once，Rise.ThresholdPercent=null；設定 Copy 修改短期及 Policy 不影響原件；非法區間 0/61、冷卻 -1/1441、零門檻遭拒。
-- [ ] 執行 `dotnet test --configuration Release --filter AdvancedAlertSettingsTests`，確認新增行為尚未提供。
-- [ ] 實作模型及 Normalize，依紀錄類型驗證必要欄位，保留舊 Upper／Lower 紀錄。
-- [ ] 同一指令驗證 GREEN，並確認舊 CoreTests／PriceAlertTests 沒有相容性退化。
-- [ ] Commit：`feat: extend alert models with compatible policies and change conditions`。
+- [x] 寫測試：舊 JSON 的 upperTriggered=true 讀回仍 true，策略 Once，Rise.ThresholdPercent=null；設定 Copy 修改短期及 Policy 不影響原件；非法區間 0/61、冷卻 -1/1441、零門檻遭拒。
+- [x] 執行 `dotnet test --configuration Release --filter AdvancedAlertSettingsTests`，確認新增行為尚未提供。
+- [x] 實作模型及 Normalize，依紀錄類型驗證必要欄位，保留舊 Upper／Lower 紀錄。
+- [x] 同一指令驗證 GREEN，並確認舊 CoreTests／PriceAlertTests 沒有相容性退化。
+- [x] Commit：`feat: extend alert models with compatible policies and change conditions`。
 
 ## Task 2: 有效報價與時間區間
 
@@ -68,12 +68,12 @@
 - `QuoteWindow.Compare(string symbol, DateTimeOffset quoteAt, int windowMinutes) : QuoteComparison?`。
 - `QuoteWindow.Clear(string? symbol = null) : void`；`QuoteComparison(decimal BaselinePrice, DateTimeOffset BaselineAt, decimal Price, DateTimeOffset QuoteAt, decimal ChangePercent)`。
 
-- [ ] 寫測試：100→98 的完整五分鐘樣本結果 -2；目標時刻前 5 秒可比較，前 5 秒又 1ms 不可；較晚基準不得採用。
-- [ ] 寫測試：每秒受控事件累積；5 秒樣本間隔可用、超過 5 秒重建；倒序／重複、REST、零價及接收時間偏差被拒；只清除停更幣種。
-- [ ] 執行 `dotnet test --configuration Release --filter QuoteWindowTests` 觀察 RED。
-- [ ] 實作各幣種排序序列、5 秒驗證、區間裁切及未四捨五入 decimal 比較；清除時不影響其他幣種。
-- [ ] 同一指令 GREEN；加上既有 parser 測試驗證來源變更相容。
-- [ ] Commit：`feat: calculate short-term changes from continuous live quotes`。
+- [x] 寫測試：100→98 的完整五分鐘樣本結果 -2；目標時刻前 5 秒可比較，前 5 秒又 1ms 不可；較晚基準不得採用。
+- [x] 寫測試：每秒受控事件累積；5 秒樣本間隔可用、超過 5 秒重建；倒序／重複、REST、零價及接收時間偏差被拒；只清除停更幣種。
+- [x] 執行 `dotnet test --configuration Release --filter QuoteWindowTests` 觀察 RED。
+- [x] 實作各幣種排序序列、5 秒驗證、區間裁切及未四捨五入 decimal 比較；清除時不影響其他幣種。
+- [x] 同一指令 GREEN；加上既有 parser 測試驗證來源變更相容。
+- [x] Commit：`feat: calculate short-term changes from continuous live quotes`。
 
 ## Task 3: 四種提醒狀態機與交易保護
 
@@ -90,14 +90,14 @@
 - `AlertConditionEvaluator` 的純判斷接受 type、threshold、price／QuoteComparison 及 policy，返回符合狀態及待執行變更；持久化與通知仍由服務負責。
 - ResetAsync、SaveAlertAsync、ApplySettingsAsync 保留簽名，支援四類 reset；狀態合併以 live 值為準。
 
-- [ ] 寫單次上漲／下跌邊界及獨立四條件測試；保持首次上下限快照觸發。
-- [ ] 寫重複測試：100 上限，101 通知，102 不通知，99 武裝，101 再通知；冷卻 2 分鐘內第二次突破消耗，結束時持續 101 不補發，再 99→101 才通知。
-- [ ] 寫重啟、策略／參數修改、區間修改、回撥時鐘、並行更新及草稿保存不覆蓋 live 狀態測試。
-- [ ] 寫 failure 測試：通知拋出、紀錄／設定唯讀、還原失敗與恢復；斷言完整持久狀態和紀錄，失敗突破可重試，成功後不重複；未符合重新武裝及冷卻消耗的寫入失敗需還原。
-- [ ] 執行 `dotnet test --configuration Release --filter AdvancedPriceAlertTests` 逐組確認 RED。
-- [ ] 實作狀態評估、序列化入口、完整快照還原、保守重連武裝及四種紀錄內容；避免把無效短期資料當作未符合。
-- [ ] 同一指令 GREEN，執行完整 `dotnet test --configuration Release`。
-- [ ] Commit：`feat: evaluate independent repeat alerts with durable cooldown state`。
+- [x] 寫單次上漲／下跌邊界及獨立四條件測試；保持首次上下限快照觸發。
+- [x] 寫重複測試：100 上限，101 通知，102 不通知，99 武裝，101 再通知；冷卻 2 分鐘內第二次突破消耗，結束時持續 101 不補發，再 99→101 才通知。
+- [x] 寫重啟、策略／參數修改、區間修改、回撥時鐘、並行更新及草稿保存不覆蓋 live 狀態測試。
+- [x] 寫 failure 測試：通知拋出、紀錄／設定唯讀、還原失敗與恢復；斷言完整持久狀態和紀錄，失敗突破可重試，成功後不重複；未符合重新武裝及冷卻消耗的寫入失敗需還原。
+- [x] 執行 `dotnet test --configuration Release --filter AdvancedPriceAlertTests` 逐組確認 RED。
+- [x] 實作狀態評估、序列化入口、完整快照還原、保守重連武裝及四種紀錄內容；避免把無效短期資料當作未符合。
+- [x] 同一指令 GREEN，執行完整 `dotnet test --configuration Release`。
+- [x] Commit：`feat: evaluate independent repeat alerts with durable cooldown state`。
 
 ## Task 4: 通知內容與紀錄查詢 ViewModel
 
@@ -112,11 +112,11 @@
 - `AlertHistoryViewModel(AlertHistoryService history)`，公開 SymbolFilter、AlertType? TypeFilter、DateTime? StartDate／EndDate、bool NewestFirst、Entries、Error、EmptyText、ReloadCommand。
 - `Reload() : void`、`RefreshAfterSubmission() : void` 保留篩選；Entries 可使用呈現 row wrapper，排序依 TriggeredAt 實際時間並穩定。
 
-- [ ] 寫測試：波動通知包含 5 分鐘、2% 門檻、100 基準、98 現價與 -2%；舊上下限通知內容仍有正確 side／target。
-- [ ] 寫混合紀錄測試：已移除幣種可篩選、四類型、雙端日期、時區 offset 與穩定排序，結束日 23:59:59 包含、下一日排除。
-- [ ] 寫讀取失敗保留上次資料、初始空檔與篩選空結果、非法日期提示及重載恢復測試。
-- [ ] 執行相關 filter 觀察 RED，實作 ViewModel 及通知文字後驗證 GREEN。
-- [ ] Commit：`feat: query alert history and format short-term notifications`。
+- [x] 寫測試：波動通知包含 5 分鐘、2% 門檻、100 基準、98 現價與 -2%；舊上下限通知內容仍有正確 side／target。
+- [x] 寫混合紀錄測試：已移除幣種可篩選、四類型、雙端日期、時區 offset 與穩定排序，結束日 23:59:59 包含、下一日排除。
+- [x] 寫讀取失敗保留上次資料、初始空檔與篩選空結果、非法日期提示及重載恢復測試。
+- [x] 執行相關 filter 觀察 RED，實作 ViewModel 及通知文字後驗證 GREEN。
+- [x] Commit：`feat: query alert history and format short-term notifications`。
 
 ## Task 5: 警示編輯介面
 
@@ -135,11 +135,11 @@
 - PriceAlertWindow 增加 `HistoryRequested` 事件；修改草稿只有按儲存才生效。
 - TickerRowViewModel.SetAlertState 納入四條件摘要；runtime 短期等待狀態透過 editor 狀態更新呈現。
 
-- [ ] 寫測試：取消不改 live、留空停用、5 分鐘 2% 正確產生設定、非法區間／冷卻／門檻阻擋保存，四個 reset 獨立。
-- [ ] 寫草稿期間成功提醒後 RefreshState／CreateAlert 不清除新執行狀態，鈴鐺涵蓋 Rise／Fall。
-- [ ] 執行相關 filter 觀察 RED，實作 editor 與 XAML；保留既有控制項名稱供舊 WPF 測試使用。
-- [ ] 驗證 GREEN，STA 視窗測試實際輸入、儲存／取消、切換策略、捲動及主題。
-- [ ] Commit：`feat: edit advanced price alert conditions and policies`。
+- [x] 寫測試：取消不改 live、留空停用、5 分鐘 2% 正確產生設定、非法區間／冷卻／門檻阻擋保存，四個 reset 獨立。
+- [x] 寫草稿期間成功提醒後 RefreshState／CreateAlert 不清除新執行狀態，鈴鐺涵蓋 Rise／Fall。
+- [x] 執行相關 filter 觀察 RED，實作 editor 與 XAML；保留既有控制項名稱供舊 WPF 測試使用。
+- [x] 驗證 GREEN，STA 視窗測試實際輸入、儲存／取消、切換策略、捲動及主題。
+- [x] Commit：`feat: edit advanced price alert conditions and policies`。
 
 ## Task 6: 紀錄視窗、App 整合及交付驗證
 
@@ -158,19 +158,19 @@
 - App 每次接受有效行情呼叫 CheckQuoteAsync；連線事件及 feed 停止／替換都由同一排程順序通知服務，禁止舊 generation 報價重新加入序列。
 - 紀錄成功提交後通知已開啟紀錄視窗刷新；可使用 PriceAlertService 的成功提交 event，事件只在完整交易完成後發送，UI 更新錯誤不得當成通知提交失敗。
 
-- [ ] 寫整合測試：主窗／走勢隱藏仍累積並觸發、REST 不暖機、斷線／重連重新等待、舊 generation 拒絕、單幣種停更不影響其他幣種。
-- [ ] 寫 WPF 測試：tray／editor 入口、最小化後重用、四類紀錄顯示、篩選／排序、主題、讀取錯誤與關閉清除訂閱。
-- [ ] 執行相關 filter 觀察 RED，實作視窗、manager、App 來源／時間／連線整合及生命週期。
-- [ ] 驗證 GREEN，並實際 render／檢查深淺色視窗、窄視窗與空／錯誤狀態。
-- [ ] 更新 README 比較公式、連續資料規則、策略／冷卻與重設、查詢入口及手動驗收；範例保留預設單次、新條件停用。
-- [ ] 執行 `dotnet build --configuration Release`、`dotnet test --configuration Release`、`dotnet publish src/BinanceTicker --configuration Release --runtime win-x64 --self-contained true -o artifacts/issue-7-publish`。
-- [ ] 在 docs/verification.md 記錄實際結果、測試數與原生 Windows 通知的手動驗收限制。
-- [ ] Commit：`feat: integrate advanced alerts and history windows`。
-- [ ] 執行全變更審查；依使用者選擇的執行方式採獨立 reviewer，修正實質問題後只重跑受影響與必要完整檢查。
+- [x] 寫整合測試：主窗／走勢隱藏仍累積並觸發、REST 不暖機、斷線／重連重新等待、舊 generation 拒絕、單幣種停更不影響其他幣種。
+- [x] 寫 WPF 測試：tray／editor 入口、最小化後重用、四類紀錄顯示、篩選／排序、主題、讀取錯誤與關閉清除訂閱。
+- [x] 執行相關 filter 觀察 RED，實作視窗、manager、App 來源／時間／連線整合及生命週期。
+- [x] 驗證 GREEN，並實際 render／檢查深淺色視窗、窄視窗與空／錯誤狀態。
+- [x] 更新 README 比較公式、連續資料規則、策略／冷卻與重設、查詢入口及手動驗收；範例保留預設單次、新條件停用。
+- [x] 執行 `dotnet build --configuration Release`、`dotnet test --configuration Release`、`dotnet publish src/BinanceTicker --configuration Release --runtime win-x64 --self-contained true -o artifacts/issue-7-publish`。
+- [x] 在 docs/verification.md 記錄實際結果、測試數與原生 Windows 通知的手動驗收限制。
+- [x] Commit：`feat: integrate advanced alerts and history windows`。
+- [x] 執行全變更審查；依使用者選擇的執行方式採獨立 reviewer，修正實質問題後只重跑受影響與必要完整檢查。
 
 ## Plan self-review
 
 - 規格 2–4 節由 Tasks 1–3 涵蓋；5.1 由 Task 5；5.2 由 Tasks 4、6；整合與驗證由 Task 6。
 - 保留舊介面／測試替身，明確新增 quote source、波動比較及查詢 ViewModel；未引入新的第三方相依。
 - 五項 Review Focus 均配置可觀察行為測試；無依原始碼文字或實作常數反推預期的測試。
-- 狀態：使用者已選 Native；六項功能已實作並完成 Release build／176 項測試，發佈建置與獨立審查進行中。
+- 狀態：使用者已選 Native；六項工作完成，Release build 零警告／錯誤、178 項測試全通過、win-x64 自包含發佈成功。獨立審查提出兩項 P2，經 RED→GREEN 修正並再次確認。

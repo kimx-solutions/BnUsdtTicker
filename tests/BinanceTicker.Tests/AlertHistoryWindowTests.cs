@@ -22,19 +22,25 @@ internal static class AlertHistoryWindowTests
         typeof(BinanceTicker.App).GetField("alerts", flags)!.SetValue(app, sink);
         var ticker = (TickerViewModel)typeof(BinanceTicker.App).GetField("ticker", flags)!.GetValue(app)!;
         ticker.Configure(new());
+        ticker.ToggleSparklineCommand.Execute(null);
+        Assert.False(ticker.ShowSparkline);
         try
         {
             var quote = new TickerPrice("BTCUSDT", 100, 0, DateTime.UtcNow, Source: QuoteSource.Stream);
             ((Task)typeof(BinanceTicker.App).GetMethod("UpdatePriceAsync", flags)!.Invoke(app, [quote])!).GetAwaiter().GetResult();
             Assert.Same(quote, sink.Received);
+            typeof(BinanceTicker.App).GetMethod("QueueAlertConnectionStatus", flags)!.Invoke(app, [ConnectionStatus.Disconnected]);
+            Assert.Equal(ConnectionStatus.Disconnected, sink.Status);
         }
         finally { typeof(BinanceTicker.App).GetField("alerts", flags)!.SetValue(app, previous); }
     }
     private sealed class QuoteSink : IPriceAlertService
     {
         public TickerPrice? Received;
+        public ConnectionStatus? Status;
         public Task CheckAsync(string symbol, decimal currentPrice) => Task.CompletedTask;
         public Task CheckQuoteAsync(TickerPrice quote) { Received = quote; return Task.CompletedTask; }
+        public Task OnConnectionStatusAsync(ConnectionStatus status) { Status = status; return Task.CompletedTask; }
         public Task ResetAsync(string symbol, AlertType? type = null) => Task.CompletedTask;
         public Task ApplySettingsAsync(AppSettings updated, IReadOnlyList<AlertResetRequest> resets, bool preserveAlerts = false) => Task.CompletedTask;
         public Task SaveAlertAsync(string symbol, PriceAlertSettings updated, IReadOnlyList<AlertResetRequest> resets) => Task.CompletedTask;
@@ -63,7 +69,14 @@ internal static class AlertHistoryWindowTests
             Assert.Contains(Descendants<TextBlock>(window), text => text.Text == "全部類型");
             Assert.Contains(Descendants<TextBlock>(window), text => text.Text == "全部幣種");
             Assert.Single(Descendants<DataGrid>(window));
-            vm.TypeFilter = AlertType.Fall; Assert.Single(vm.Entries);
+            var typeFilter = Descendants<ComboBox>(window).Single(box => AutomationProperties.GetName(box) == "篩選提醒類型");
+            typeFilter.SelectedValue = AlertType.Fall;
+            Assert.Equal(AlertType.Fall, vm.TypeFilter); Assert.Single(vm.Entries);
+            var startDate = Descendants<DatePicker>(window).Single(picker => AutomationProperties.GetName(picker) == "起始日期");
+            startDate.SelectedDate = DateTime.Today;
+            Assert.Equal(DateTime.Today, vm.StartDate); Assert.Single(vm.Entries);
+            var grid = Descendants<DataGrid>(window).Single(); grid.SelectedIndex = 0; window.UpdateLayout();
+            Assert.Contains(Descendants<TextBlock>(window), text => text.Text.Contains("基準 100 USDT"));
             ThemeService.Apply(ColorTheme.Light); managerType.GetMethod("RefreshTheme")!.Invoke(manager, null);
             Render(window, "history-light.png");
             File.WriteAllText(history.FilePath, "{"); managerType.GetMethod("Refresh")!.Invoke(manager, null);
@@ -77,6 +90,11 @@ internal static class AlertHistoryWindowTests
                 Assert.Contains(Descendants<TextBlock>(editor), text => text.Text == "單次");
                 Assert.Contains(Descendants<TextBox>(editor), box => AutomationProperties.GetName(box) == "短期上漲門檻百分比");
                 editorVm.Rise.ThresholdText = "2"; editorVm.Rise.Policy.Strategy = AlertStrategy.Repeat;
+                var strategy = Descendants<ComboBox>(editor).First(box => box.DataContext == editorVm.UpperPolicy);
+                strategy.SelectedValue = AlertStrategy.Repeat;
+                Assert.Equal(AlertStrategy.Repeat, editorVm.UpperPolicy.Strategy);
+                var cooldown = Descendants<TextBox>(editor).First(box => box.DataContext == editorVm.UpperPolicy && AutomationProperties.GetName(box) == "冷卻分鐘");
+                cooldown.Text = "2"; Assert.Equal(2, editorVm.CreateAlert().UpperPolicy.CooldownMinutes);
                 Render(editor, "advanced-editor-light.png");
                 ThemeService.Apply(ColorTheme.Dark); editor.RefreshTheme(); editor.Width = 360;
                 Render(editor, "advanced-editor-dark-narrow.png");

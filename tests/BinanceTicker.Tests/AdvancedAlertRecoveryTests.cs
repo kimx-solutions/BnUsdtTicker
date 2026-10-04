@@ -117,7 +117,54 @@ public sealed class AdvancedAlertRecoveryTests : IDisposable
         Assert.Equal(2, History.Load().Count);
     }
 
-    private sealed class Sink : INotificationService { public void Show(AlertHistoryEntry entry) { } }
+    [Fact]
+    public async Task FailedUpperSubmissionDoesNotInterruptValidShortTermSamples()
+    {
+        settings.Symbols[0].Alert.Rise = new() { ThresholdPercent = 2, WindowMinutes = 1, Policy = new() { Strategy = AlertStrategy.Repeat } };
+        var service = Create();
+        for (var i = 0; i <= 120; i++)
+        {
+            await service.CheckQuoteAsync(Quote("BTCUSDT", i < 60 ? 100 : 102));
+            now = now.AddSeconds(1);
+        }
+        Assert.Single(History.Load()); Assert.True(settings.Symbols[0].Alert.Rise.Policy.Armed);
+        settings.Symbols[0].Alert.UpperPrice = 100; sink.FailUpper = true;
+        for (var i = 0; i < 8; i++)
+        {
+            await Assert.ThrowsAsync<InvalidOperationException>(() => service.CheckQuoteAsync(Quote("BTCUSDT", 105)));
+            now = now.AddSeconds(1);
+        }
+        settings.Symbols[0].Alert.UpperPrice = null;
+        await service.CheckQuoteAsync(Quote("BTCUSDT", 105));
+        var entries = History.Load();
+        Assert.Equal(2, entries.Count);
+        Assert.Equal(102m, entries[1].BaselinePrice);
+        Assert.Equal(TimeSpan.FromMinutes(1), entries[1].QuoteAt - entries[1].BaselineAt);
+    }
+
+    [Fact]
+    public async Task BulkWindowChangePersistsFinalDisarmedState()
+    {
+        settings.Symbols[0].Alert.Rise = new() { ThresholdPercent = 2, WindowMinutes = 1, Policy = new() { Strategy = AlertStrategy.Repeat } };
+        var service = Create();
+        for (var i = 0; i <= 60; i++)
+        {
+            await service.CheckQuoteAsync(Quote("BTCUSDT", i == 60 ? 102 : 100)); now = now.AddSeconds(1);
+        }
+        await service.CheckQuoteAsync(Quote("BTCUSDT", 100));
+        Assert.True(settings.Symbols[0].Alert.Rise.Policy.Armed);
+        var draft = settings.Copy(); draft.Symbols[0].Alert.Rise.ThresholdPercent = 3;
+        await service.ApplySettingsAsync(draft, []);
+        Assert.False(draft.Symbols[0].Alert.Rise.Policy.Armed);
+        Assert.False(Store.Load().Symbols[0].Alert.Rise.Policy.Armed);
+    }
+
+    private sealed class Sink : INotificationService
+    {
+        public bool FailUpper;
+        public void Show(AlertHistoryEntry entry)
+        { if (FailUpper && entry.AlertType == AlertType.Upper) throw new InvalidOperationException("upper rejected"); }
+    }
     public void Dispose()
     {
         if (!Directory.Exists(directory)) return;
