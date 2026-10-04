@@ -2,6 +2,12 @@
 
 ## Issue #6 — Market visualization (2026-10-04)
 
+- Follow-up: graph visibility now uses the bottom-right chart icon, immediately
+  left of the theme switch. The top toolbar keeps only 1h/24h. Actual WPF controls
+  verified both toggle directions; dark/light/hidden renders inspected in
+  `artifacts/issue-6-icon-previews`. Updated self-contained executable:
+  `artifacts/issue-6-icon-publish/BinanceTicker.exe`.
+
 - Branch: `codex/issue-6-implementation`, based on `71c007e`.
 - Added shared 1-minute history, 1h/24h sparklines, separate market details, and
   default-browser Binance spot links. Ticker width remains 390 DIP.

@@ -82,6 +82,27 @@
                 </StackPanel>
             </Grid>
             <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
+                <Button x:Name="SparklineToggleButton" Command="{Binding ToggleSparklineCommand}"
+                        ToolTip="{Binding SparklineToggleText}" AutomationProperties.Name="{Binding SparklineToggleText}">
+                    <Button.Style><Style TargetType="Button" BasedOn="{StaticResource ThemeButton}">
+                        <Style.Triggers><DataTrigger Binding="{Binding ShowSparkline}" Value="True">
+                            <Setter Property="Foreground" Value="{DynamicResource SettingsAccent}" />
+                        </DataTrigger></Style.Triggers>
+                    </Style></Button.Style>
+                    <Viewbox Width="16" Height="16">
+                        <Canvas Width="24" Height="24">
+                            <Path Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                  StrokeThickness="1.8" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round">
+                                <Path.Style><Style TargetType="Path">
+                                    <Setter Property="Data" Value="M3,4 L3,20 L21,20 M6,15 L10,11 L14,14 L20,6" />
+                                    <Style.Triggers><DataTrigger Binding="{Binding ShowSparkline}" Value="False">
+                                        <Setter Property="Data" Value="M3,4 L3,20 L21,20 M6,15 L10,11 M15,12 L20,6 M5,3 L21,19" />
+                                    </DataTrigger></Style.Triggers>
+                                </Style></Path.Style>
+                            </Path>
+                        </Canvas>
+                    </Viewbox>
+                </Button>
                 <Button x:Name="ThemeToggleButton" Style="{StaticResource ThemeButton}" Click="ThemeClicked"
                         ToolTip="{Binding ThemeToggleText}" AutomationProperties.Name="{Binding ThemeToggleText}">
                     <Viewbox Width="16" Height="16">
@@ -145,12 +166,11 @@
                             <Style.Triggers><DataTrigger Binding="{Binding IsHourRange}" Value="True"><Setter Property="Foreground" Value="{DynamicResource SettingsAccent}" /><Setter Property="Background" Value="{DynamicResource TickerHover}" /></DataTrigger></Style.Triggers>
                         </Style></Button.Style>
                     </Button>
-                    <Button Content="24h" Command="{Binding SelectDayCommand}" AutomationProperties.Name="二十四小時走勢" ToolTip="顯示最近二十四小時" Margin="4,0,12,0">
+                    <Button Content="24h" Command="{Binding SelectDayCommand}" AutomationProperties.Name="二十四小時走勢" ToolTip="顯示最近二十四小時" Margin="4,0,0,0">
                         <Button.Style><Style TargetType="Button" BasedOn="{StaticResource HeaderButton}">
                             <Style.Triggers><DataTrigger Binding="{Binding IsDayRange}" Value="True"><Setter Property="Foreground" Value="{DynamicResource SettingsAccent}" /><Setter Property="Background" Value="{DynamicResource TickerHover}" /></DataTrigger></Style.Triggers>
                         </Style></Button.Style>
                     </Button>
-                    <Button Content="{Binding SparklineToggleText}" Command="{Binding ToggleSparklineCommand}" Style="{StaticResource HeaderButton}" FontSize="11" AutomationProperties.Name="{Binding SparklineToggleText}" />
                 </StackPanel>
                 <Grid DockPanel.Dock="Top" Margin="0,0,0,2">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="20" /><ColumnDefinition Width="68" /><ColumnDefinition /><ColumnDefinition Width="85" /></Grid.ColumnDefinitions>
