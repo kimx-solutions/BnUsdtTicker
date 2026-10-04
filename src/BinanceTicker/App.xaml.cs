@@ -147,7 +147,7 @@ public partial class App : Application
     {
         if (exiting) return;
         if (settingsWindow is not null) { settingsWindow.Activate(); return; }
-        settingsWindow = new(new(settings, binance), ApplySettingsAsync);
+        settingsWindow = new(new(settings, binance), ApplySettingsAsync, tickerWindow);
         settingsWindow.Closed += (_, _) => settingsWindow = null;
         settingsWindow.Show(); settingsWindow.Activate();
     }

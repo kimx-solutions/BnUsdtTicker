@@ -2,6 +2,8 @@ using BinanceTicker.Services;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Data;
+using System.Windows.Interop;
 using BinanceTicker.Core.Models;
 using BinanceTicker.Core.ViewModels;
 
@@ -12,10 +14,17 @@ public partial class SettingsWindow : Window
     private readonly Func<AppSettings, Task<bool>> save;
     private bool saving;
     public SettingsViewModel ViewModel { get; }
-    public SettingsWindow(SettingsViewModel viewModel, Func<AppSettings, Task<bool>> save)
+    public SettingsWindow(SettingsViewModel viewModel, Func<AppSettings, Task<bool>> save, Window? owner = null)
     {
         InitializeComponent();
         ViewModel = viewModel; DataContext = viewModel; this.save = save;
+        if (owner is not null)
+        {
+            // Tray settings can open before the ticker is first shown; create its hidden HWND for ownership.
+            new WindowInteropHelper(owner).EnsureHandle();
+            Owner = owner;
+            SetBinding(TopmostProperty, new Binding(nameof(Topmost)) { Source = owner, Mode = BindingMode.OneWay });
+        }
         Closed += (_, _) => ViewModel.Dispose();
         // Explicit primary placement matches WorkArea. CenterScreen can choose the mouse's monitor.
         var area = SystemParameters.WorkArea;

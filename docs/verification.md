@@ -225,3 +225,17 @@ Execution choices:
   instances. This respects WPF's singleton constraint; failures share one test-harness result.
 - Used self-review after independent review was unavailable; residual risk is the absence of a fresh
   second reviewer. No merge, push or GitHub release was performed.
+
+### Settings layering and holdings tab follow-up
+
+- Settings is owned by the ticker and follows its Topmost property. Native window-order assertions
+  verify it remains above the FIX ticker after ticker activation, follows FLOAT mode, and stays usable
+  when the ticker is hidden. Opening from the tray before the ticker has ever appeared is covered.
+- General settings and shared holdings now occupy separate tabs with one persistent save/cancel footer.
+  STA checks edit actual holding TextBoxes, switch tabs without losing input, cancel without saving,
+  and save both a renamed group and edited cost from the holdings tab. The original settings remain
+  unchanged until the save callback applies the draft.
+- Reconfiguring the group list reproduced a blank selected-name regression in the custom ComboBox
+  template. Binding its presenter directly to SelectedItem and ItemTemplate fixes the rendered label.
+- Both themes and 400 × 400 DIP settings are rendered in `artifacts/issue-9/settings-tabs-previews`.
+  The complete Release suite passes 248 tests; build and self-contained x64 publish are refreshed.

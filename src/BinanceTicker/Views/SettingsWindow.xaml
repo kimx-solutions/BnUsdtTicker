@@ -23,98 +23,103 @@
                 </StackPanel>
             </StackPanel>
         </Border>
-        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,16,0">
-            <StackPanel>
-                <TextBlock Text="BINANCE / USDT" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource SettingsAccent}" Margin="0,0,0,8" />
-                <TextBlock Text="自選分組" FontSize="25" FontWeight="SemiBold" Margin="0,0,0,12" />
-                <ComboBox ItemsSource="{Binding Watchlists}" SelectedItem="{Binding SelectedWatchlist, Mode=TwoWay}"
-                          AutomationProperties.Name="編輯分組" Margin="0,0,0,10">
-                    <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" /></DataTemplate></ComboBox.ItemTemplate>
-                </ComboBox>
-                <TextBox Text="{Binding WatchlistName, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="分組名稱" ToolTip="輸入分組名稱" Margin="0,0,0,10" />
-                <WrapPanel Margin="0,0,0,8">
-                    <Button Content="建立分組" Command="{Binding AddWatchlistCommand}" Margin="0,0,8,4" />
-                    <Button Content="重新命名" Command="{Binding RenameWatchlistCommand}" Margin="0,0,8,4" />
-                    <Button Content="刪除分組" IsEnabled="{Binding CanRemoveWatchlist}" Click="DeleteWatchlistClicked" Margin="0,0,0,4" />
-                </WrapPanel>
-                <TextBlock Text="只刪除此分組及其成員檢視；共用持倉、其他分組與價格提醒會保留。按儲存後生效。" TextWrapping="Wrap" FontSize="11"
-                           Foreground="{DynamicResource SettingsMuted}" Margin="0,0,0,16" />
-                <TextBlock Text="監控幣種" FontSize="25" FontWeight="SemiBold" />
-                <TextBlock Text="勾選在本組顯示，選取後可排序或移除。其他分組、共用持倉與啟用的提醒不受影響。" TextWrapping="Wrap" Foreground="{DynamicResource SettingsMuted}" Margin="0,8,0,16" />
-                <Grid Height="38" Margin="0,0,0,12">
-                    <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="12" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                    <TextBox x:Name="SymbolInput" Text="{Binding NewSymbol, UpdateSourceTrigger=PropertyChanged}" ToolTip="輸入 BTC、ETH 或 BTCUSDT">
-                        <TextBox.InputBindings><KeyBinding Key="Enter" Command="{Binding AddCommand}" /></TextBox.InputBindings>
-                    </TextBox>
-                    <Button Grid.Column="2" Content="＋ 新增" Command="{Binding AddCommand}" MinWidth="84" />
-                </Grid>
-                <Grid Height="160">
-                    <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="16" /><ColumnDefinition Width="84" /></Grid.ColumnDefinitions>
-                    <Border Background="{DynamicResource SettingsInput}" BorderBrush="{DynamicResource SettingsBorder}" BorderThickness="1" CornerRadius="6" Padding="4">
-                        <ListBox ItemsSource="{Binding Symbols}" SelectedItem="{Binding SelectedSymbol}" PreviewMouseDown="SelectSymbolRow"
-                                 Background="Transparent" BorderThickness="0" Foreground="{DynamicResource SettingsText}" HorizontalContentAlignment="Stretch"
-                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-                            <ListBox.ItemTemplate><DataTemplate><CheckBox Content="{Binding Symbol}" IsChecked="{Binding Enabled, Mode=TwoWay}" /></DataTemplate></ListBox.ItemTemplate>
-                        </ListBox>
-                    </Border>
-                    <StackPanel Grid.Column="2">
-                        <Button Content="↑ 上移" Command="{Binding MoveUpCommand}" Margin="0,0,0,10" />
-                        <Button Content="↓ 下移" Command="{Binding MoveDownCommand}" Margin="0,0,0,10" />
-                        <Button Content="刪除" Command="{Binding RemoveCommand}" />
+        <TabControl x:Name="SettingsTabs" Style="{StaticResource SettingsTabs}" AutomationProperties.Name="設定分頁">
+            <TabItem Header="一般設定" Style="{StaticResource SettingsTab}">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,16,0">
+                    <StackPanel>
+                        <TextBlock Text="BINANCE / USDT" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource SettingsAccent}" Margin="0,0,0,8" />
+                        <TextBlock Text="自選分組" FontSize="25" FontWeight="SemiBold" Margin="0,0,0,12" />
+                        <ComboBox ItemsSource="{Binding Watchlists}" SelectedItem="{Binding SelectedWatchlist, Mode=TwoWay}"
+                                  AutomationProperties.Name="編輯分組" Margin="0,0,0,10">
+                            <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" /></DataTemplate></ComboBox.ItemTemplate>
+                        </ComboBox>
+                        <TextBox Text="{Binding WatchlistName, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="分組名稱" ToolTip="輸入分組名稱" Margin="0,0,0,10" />
+                        <WrapPanel Margin="0,0,0,8">
+                            <Button Content="建立分組" Command="{Binding AddWatchlistCommand}" Margin="0,0,8,4" />
+                            <Button Content="重新命名" Command="{Binding RenameWatchlistCommand}" Margin="0,0,8,4" />
+                            <Button Content="刪除分組" IsEnabled="{Binding CanRemoveWatchlist}" Click="DeleteWatchlistClicked" Margin="0,0,0,4" />
+                        </WrapPanel>
+                        <TextBlock Text="只刪除此分組及其成員檢視；共用持倉、其他分組與價格提醒會保留。按儲存後生效。" TextWrapping="Wrap" FontSize="11"
+                                   Foreground="{DynamicResource SettingsMuted}" Margin="0,0,0,16" />
+                        <TextBlock Text="監控幣種" FontSize="25" FontWeight="SemiBold" />
+                        <TextBlock Text="勾選在本組顯示，選取後可排序或移除。其他分組、共用持倉與啟用的提醒不受影響。" TextWrapping="Wrap" Foreground="{DynamicResource SettingsMuted}" Margin="0,8,0,16" />
+                        <Grid Height="38" Margin="0,0,0,12">
+                            <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="12" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                            <TextBox x:Name="SymbolInput" Text="{Binding NewSymbol, UpdateSourceTrigger=PropertyChanged}" ToolTip="輸入 BTC、ETH 或 BTCUSDT">
+                                <TextBox.InputBindings><KeyBinding Key="Enter" Command="{Binding AddCommand}" /></TextBox.InputBindings>
+                            </TextBox>
+                            <Button Grid.Column="2" Content="＋ 新增" Command="{Binding AddCommand}" MinWidth="84" />
+                        </Grid>
+                        <Grid Height="160">
+                            <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="16" /><ColumnDefinition Width="84" /></Grid.ColumnDefinitions>
+                            <Border Background="{DynamicResource SettingsInput}" BorderBrush="{DynamicResource SettingsBorder}" BorderThickness="1" CornerRadius="6" Padding="4">
+                                <ListBox ItemsSource="{Binding Symbols}" SelectedItem="{Binding SelectedSymbol}" PreviewMouseDown="SelectSymbolRow"
+                                         Background="Transparent" BorderThickness="0" Foreground="{DynamicResource SettingsText}" HorizontalContentAlignment="Stretch"
+                                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                    <ListBox.ItemTemplate><DataTemplate><CheckBox Content="{Binding Symbol}" IsChecked="{Binding Enabled, Mode=TwoWay}" /></DataTemplate></ListBox.ItemTemplate>
+                                </ListBox>
+                            </Border>
+                            <StackPanel Grid.Column="2">
+                                <Button Content="↑ 上移" Command="{Binding MoveUpCommand}" Margin="0,0,0,10" />
+                                <Button Content="↓ 下移" Command="{Binding MoveDownCommand}" Margin="0,0,0,10" />
+                                <Button Content="刪除" Command="{Binding RemoveCommand}" />
+                            </StackPanel>
+                        </Grid>
+                        <Border BorderBrush="{DynamicResource SettingsBorder}" BorderThickness="0,1,0,0" Margin="0,18,0,14" />
+                        <TextBlock Text="顯示設定" FontSize="15" FontWeight="SemiBold" Margin="0,0,0,12" />
+                        <TextBlock Text="漲跌幅、列高及走勢選項套用於目前編輯的分組。" Foreground="{DynamicResource SettingsMuted}" TextWrapping="Wrap" Margin="0,0,0,12" FontSize="11" />
+                        <Grid Margin="0,0,0,8">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="120" /></Grid.ColumnDefinitions>
+                            <TextBlock Text="顯示模式" VerticalAlignment="Center" />
+                            <ComboBox Grid.Column="1" ItemsSource="{Binding Modes}" SelectedItem="{Binding Mode}" />
+                        </Grid>
+                        <TextBlock Text="Fix：保持最上層 · Float：失去焦點即隱藏" TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource SettingsMuted}" Margin="0,0,0,12" />
+                        <CheckBox Content="登入 Windows 後自動啟動" IsChecked="{Binding StartWithWindows}" Margin="0,0,0,10" />
+                        <CheckBox Content="啟動時顯示報價" IsChecked="{Binding ShowOnStartup}" Margin="0,0,0,10" />
+                        <CheckBox Content="使用全域快捷鍵顯示／隱藏報價" IsChecked="{Binding HotkeyEnabled}" Margin="0,0,0,8" />
+                        <TextBox Text="{Binding HotkeyText, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="全域快捷鍵" ToolTip="輸入組合，例如 Ctrl+Alt+T" Margin="0,0,0,8" />
+                        <TextBlock Text="可輸入 Ctrl、Alt、Shift、Win 加字母、數字、功能鍵或導航鍵；F12 為系統保留。儲存時會檢查衝突。" TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource SettingsMuted}" Margin="0,0,0,12" />
+                        <CheckBox Content="顯示 24 小時漲跌幅" IsChecked="{Binding ShowChangePercent}" Margin="0,0,0,10" />
+                        <CheckBox Content="緊湊列高" IsChecked="{Binding CompactMode}" Margin="0,0,0,12" />
+                        <CheckBox Content="顯示價格走勢" IsChecked="{Binding ShowSparkline}" Margin="0,0,0,10" />
+                        <Grid Margin="0,0,0,12">
+                            <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="120" /></Grid.ColumnDefinitions>
+                            <TextBlock Text="走勢範圍" VerticalAlignment="Center" />
+                            <ComboBox Grid.Column="1" ItemsSource="{Binding SparklineRanges}" SelectedItem="{Binding SparklineRange}" AutomationProperties.Name="走勢範圍" />
+                        </Grid>
+                        <Grid Margin="0,0,0,8">
+                            <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                            <TextBlock Text="不透明度" VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="1" Text="{Binding Value, ElementName=OpacitySlider, StringFormat={}{0:P0}}" Foreground="{DynamicResource SettingsAccent}" FontFamily="Consolas" VerticalAlignment="Center" />
+                        </Grid>
+                        <Slider x:Name="OpacitySlider" Minimum="0.2" Maximum="1" Value="{Binding Opacity}" IsMoveToPointEnabled="True" IsSnapToTickEnabled="False" />
                     </StackPanel>
-                </Grid>
-                <Border BorderBrush="{DynamicResource SettingsBorder}" BorderThickness="0,1,0,0" Margin="0,18,0,14" />
-                <Expander Margin="0,0,0,16" IsExpanded="True">
-                    <Expander.Header><TextBlock Text="共用持倉與提醒啟用狀態" Foreground="{DynamicResource SettingsText}" /></Expander.Header>
-                    <StackPanel Margin="0,12,0,0">
+                </ScrollViewer>
+            </TabItem>
+            <TabItem Header="持倉成本" Style="{StaticResource SettingsTab}">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,16,0">
+                    <StackPanel>
+                        <TextBlock Text="共用持倉" FontSize="25" FontWeight="SemiBold" Margin="0,0,0,12" />
                         <TextBlock Text="手動持有數量與平均成本（USDT／單位），跨分組共用。小數點使用 .，不輸入千分位；兩欄留空可清除持倉。未屬於任何分組的持倉仍計入全部摘要。" TextWrapping="Wrap" Foreground="{DynamicResource SettingsMuted}" Margin="0,0,0,10" />
-                        <ScrollViewer MaxHeight="250" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                            <ItemsControl ItemsSource="{Binding Holdings}"><ItemsControl.ItemTemplate><DataTemplate>
-                                <StackPanel Margin="0,0,0,12">
-                                    <DockPanel Margin="0,0,0,6">
-                                        <TextBlock Text="{Binding Symbol}" FontWeight="SemiBold" VerticalAlignment="Center" Foreground="{DynamicResource SettingsText}" />
-                                        <CheckBox Content="啟用提醒" IsChecked="{Binding AlertEnabled, Mode=TwoWay}" HorizontalAlignment="Right" ToolTip="控制此幣種的共用提醒；條件由報價列鈴鐺設定。" />
-                                    </DockPanel>
-                                    <Grid><Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="10" /><ColumnDefinition /></Grid.ColumnDefinitions>
-                                        <StackPanel><TextBlock Text="持有數量" FontSize="11" Margin="0,0,0,4" Foreground="{DynamicResource SettingsText}" />
-                                            <TextBox Text="{Binding QuantityText, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{Binding Symbol, StringFormat={}{0} 持有數量}" /></StackPanel>
-                                        <StackPanel Grid.Column="2"><TextBlock Text="平均成本 · USDT" FontSize="11" Margin="0,0,0,4" Foreground="{DynamicResource SettingsText}" />
-                                            <TextBox Text="{Binding AverageCostText, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{Binding Symbol, StringFormat={}{0} 平均成本}" /></StackPanel>
-                                    </Grid>
-                                </StackPanel>
-                            </DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
-                        </ScrollViewer>
+
+                        <ItemsControl ItemsSource="{Binding Holdings}"><ItemsControl.ItemTemplate><DataTemplate>
+                            <StackPanel Margin="0,0,0,12">
+                                <DockPanel Margin="0,0,0,6">
+                                    <TextBlock Text="{Binding Symbol}" FontWeight="SemiBold" VerticalAlignment="Center" Foreground="{DynamicResource SettingsText}" />
+                                    <CheckBox Content="啟用提醒" IsChecked="{Binding AlertEnabled, Mode=TwoWay}" HorizontalAlignment="Right" ToolTip="控制此幣種的共用提醒；條件由報價列鈴鐺設定。" />
+                                </DockPanel>
+                                <Grid><Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="10" /><ColumnDefinition /></Grid.ColumnDefinitions>
+                                    <StackPanel><TextBlock Text="持有數量" FontSize="11" Margin="0,0,0,4" Foreground="{DynamicResource SettingsText}" />
+                                        <TextBox Text="{Binding QuantityText, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{Binding Symbol, StringFormat={}{0} 持有數量}" /></StackPanel>
+                                    <StackPanel Grid.Column="2"><TextBlock Text="平均成本 · USDT" FontSize="11" Margin="0,0,0,4" Foreground="{DynamicResource SettingsText}" />
+                                        <TextBox Text="{Binding AverageCostText, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{Binding Symbol, StringFormat={}{0} 平均成本}" /></StackPanel>
+                                </Grid>
+                            </StackPanel>
+                        </DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+
                     </StackPanel>
-                </Expander>
-                <Border BorderBrush="{DynamicResource SettingsBorder}" BorderThickness="0,1,0,0" Margin="0,0,0,14" />
-                <TextBlock Text="顯示設定" FontSize="15" FontWeight="SemiBold" Margin="0,0,0,12" />
-                <TextBlock Text="漲跌幅、列高及走勢選項套用於目前編輯的分組。" Foreground="{DynamicResource SettingsMuted}" TextWrapping="Wrap" Margin="0,0,0,12" FontSize="11" />
-                <Grid Margin="0,0,0,8">
-                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="120" /></Grid.ColumnDefinitions>
-                    <TextBlock Text="顯示模式" VerticalAlignment="Center" />
-                    <ComboBox Grid.Column="1" ItemsSource="{Binding Modes}" SelectedItem="{Binding Mode}" />
-                </Grid>
-                <TextBlock Text="Fix：保持最上層 · Float：失去焦點即隱藏" TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource SettingsMuted}" Margin="0,0,0,12" />
-                <CheckBox Content="登入 Windows 後自動啟動" IsChecked="{Binding StartWithWindows}" Margin="0,0,0,10" />
-                <CheckBox Content="啟動時顯示報價" IsChecked="{Binding ShowOnStartup}" Margin="0,0,0,10" />
-                <CheckBox Content="使用全域快捷鍵顯示／隱藏報價" IsChecked="{Binding HotkeyEnabled}" Margin="0,0,0,8" />
-                <TextBox Text="{Binding HotkeyText, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="全域快捷鍵" ToolTip="輸入組合，例如 Ctrl+Alt+T" Margin="0,0,0,8" />
-                <TextBlock Text="可輸入 Ctrl、Alt、Shift、Win 加字母、數字、功能鍵或導航鍵；F12 為系統保留。儲存時會檢查衝突。" TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource SettingsMuted}" Margin="0,0,0,12" />
-                <CheckBox Content="顯示 24 小時漲跌幅" IsChecked="{Binding ShowChangePercent}" Margin="0,0,0,10" />
-                <CheckBox Content="緊湊列高" IsChecked="{Binding CompactMode}" Margin="0,0,0,12" />
-                <CheckBox Content="顯示價格走勢" IsChecked="{Binding ShowSparkline}" Margin="0,0,0,10" />
-                <Grid Margin="0,0,0,12">
-                    <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="120" /></Grid.ColumnDefinitions>
-                    <TextBlock Text="走勢範圍" VerticalAlignment="Center" />
-                    <ComboBox Grid.Column="1" ItemsSource="{Binding SparklineRanges}" SelectedItem="{Binding SparklineRange}" AutomationProperties.Name="走勢範圍" />
-                </Grid>
-                <Grid Margin="0,0,0,8">
-                    <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                    <TextBlock Text="不透明度" VerticalAlignment="Center" />
-                    <TextBlock Grid.Column="1" Text="{Binding Value, ElementName=OpacitySlider, StringFormat={}{0:P0}}" Foreground="{DynamicResource SettingsAccent}" FontFamily="Consolas" VerticalAlignment="Center" />
-                </Grid>
-                <Slider x:Name="OpacitySlider" Minimum="0.2" Maximum="1" Value="{Binding Opacity}" IsMoveToPointEnabled="True" IsSnapToTickEnabled="False" />
-            </StackPanel>
-        </ScrollViewer>
+                </ScrollViewer>
+            </TabItem>
+        </TabControl>
     </DockPanel>
 </Window>
