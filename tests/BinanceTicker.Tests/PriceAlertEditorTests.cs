@@ -95,7 +95,7 @@ public sealed class PriceAlertEditorTests
         var settings = CreateSettings();
         var editor = new PriceAlertEditorViewModel("BTCUSDT", settings.Symbols[0].Alert);
         editor.ResetBothCommand.Execute(null);
-        Assert.Equal(new[] { new AlertResetRequest("BTCUSDT", AlertType.Upper), new("BTCUSDT", AlertType.Lower) }, editor.GetAlertResets());
+        Assert.Equal(new[] { new AlertResetRequest("BTCUSDT", AlertType.Upper), new("BTCUSDT", AlertType.Lower), new("BTCUSDT", AlertType.Rise), new("BTCUSDT", AlertType.Fall) }, editor.GetAlertResets());
         Assert.False(editor.CreateAlert().UpperTriggered);
         Assert.False(editor.CreateAlert().LowerTriggered);
         Assert.All(settings.Symbols, s => Assert.True(s.Alert.UpperTriggered));

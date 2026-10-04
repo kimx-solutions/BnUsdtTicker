@@ -79,6 +79,7 @@ public sealed class PriceAlertService : IPriceAlertService
                 var condition = type == AlertType.Rise ? item.Alert.Rise : item.Alert.Fall;
                 if (condition.ThresholdPercent is not > 0) continue;
                 var comparison = quotes.Compare(item.Symbol, at, condition.WindowMinutes);
+                condition.ComparisonReady = comparison is not null && (!starts.TryGetValue((item.Symbol, type), out var since) || comparison.BaselineAt >= since);
                 if (comparison is null || starts.TryGetValue((item.Symbol, type), out var start) && comparison.BaselineAt < start) continue;
                 var matches = type == AlertType.Rise ? comparison.ChangePercent >= condition.ThresholdPercent :
                     comparison.ChangePercent <= -condition.ThresholdPercent;
@@ -178,6 +179,7 @@ public sealed class PriceAlertService : IPriceAlertService
     private void ResetContinuity(SymbolSetting item)
     {
         quotes.Clear(item.Symbol); lastQuote.Remove(item.Symbol);
+        item.Alert.Rise.ComparisonReady = false; item.Alert.Fall.ComparisonReady = false;
         DisarmPreviouslyTriggered(item.Alert);
     }
     public async Task OnConnectionStatusAsync(ConnectionStatus status)
@@ -231,6 +233,7 @@ public sealed class PriceAlertService : IPriceAlertService
             if (old?.WindowMinutes != next.WindowMinutes || old?.ThresholdPercent != next.ThresholdPercent)
             {
                 starts[(symbol, type)] = clock();
+                next.ComparisonReady = false;
                 if (next.Triggered && next.Policy.Strategy == AlertStrategy.Repeat) next.Policy.Armed = false;
             }
         }

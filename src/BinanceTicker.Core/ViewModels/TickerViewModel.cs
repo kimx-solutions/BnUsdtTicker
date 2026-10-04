@@ -11,6 +11,8 @@ public sealed class TickerRowViewModel(string symbol) : ObservableObject
     private TickerPrice? price;
     private bool upperTriggered;
     private bool lowerTriggered;
+    private bool riseTriggered;
+    private bool fallTriggered;
     private bool hasConfiguredAlert;
     public string Symbol { get; } = symbol;
     public string Asset => Symbol[..^4];
@@ -20,13 +22,14 @@ public sealed class TickerRowViewModel(string symbol) : ObservableObject
     public string ChangeText => price is null ? "—" : PriceFormatter.Change(price.ChangePercent24h);
     public bool IsPositive => price?.ChangePercent24h >= 0;
     public bool HasPrice => price is not null;
-    public bool HasTriggeredAlert => upperTriggered || lowerTriggered;
+    public bool HasTriggeredAlert => upperTriggered || lowerTriggered || riseTriggered || fallTriggered;
     public bool HasConfiguredAlert => hasConfiguredAlert;
     public string AlertButtonText => HasTriggeredAlert ? $"{Asset} {AlertStatusText}" :
         HasConfiguredAlert ? $"編輯 {Asset} 價格警示" : $"新增 {Asset} 價格警示";
     public string AlertStatusText => "價格提醒：" + string.Join("、", new[]
     {
-        upperTriggered ? "上限已提醒" : null, lowerTriggered ? "下限已提醒" : null
+        upperTriggered ? "上限已提醒" : null, lowerTriggered ? "下限已提醒" : null,
+        riseTriggered ? "短期上漲已提醒" : null, fallTriggered ? "短期下跌已提醒" : null
     }.Where(s => s is not null)) + "；點擊開啟警示視窗重設。";
     public string UpdatedText => price is null ? "等待報價" : "更新於 " + price.UpdatedAt.ToLocalTime().ToString("HH:mm:ss");
 
@@ -92,7 +95,8 @@ public sealed class TickerRowViewModel(string symbol) : ObservableObject
     {
         upperTriggered = alert.UpperTriggered;
         lowerTriggered = alert.LowerTriggered;
-        hasConfiguredAlert = alert.UpperPrice is not null || alert.LowerPrice is not null;
+        riseTriggered = alert.Rise.Triggered; fallTriggered = alert.Fall.Triggered;
+        hasConfiguredAlert = alert.UpperPrice is not null || alert.LowerPrice is not null || alert.Rise.ThresholdPercent is not null || alert.Fall.ThresholdPercent is not null;
         Notify(nameof(HasTriggeredAlert)); Notify(nameof(AlertStatusText));
         Notify(nameof(HasConfiguredAlert)); Notify(nameof(AlertButtonText));
     }
