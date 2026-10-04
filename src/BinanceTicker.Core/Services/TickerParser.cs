@@ -10,10 +10,10 @@ public static class TickerParser
     public static TickerPrice ParseStream(JsonElement data)
     {
         if (data.TryGetProperty("data", out var payload)) data = payload;
-        return Parse(data, "s", "c", "P", "E");
+        return Parse(data, "s", "c", "P", "E", true);
     }
 
-    private static TickerPrice Parse(JsonElement data, string symbol, string price, string change, string time)
+    private static TickerPrice Parse(JsonElement data, string symbol, string price, string change, string time, bool stream = false)
     {
         try
         {
@@ -22,10 +22,19 @@ public static class TickerParser
             if (string.IsNullOrWhiteSpace(name) || priceValue < 0) throw new JsonException("Invalid ticker value");
             return new(name, priceValue,
                 decimal.Parse(data.GetProperty(change).GetString()!, CultureInfo.InvariantCulture),
-                DateTimeOffset.FromUnixTimeMilliseconds(data.GetProperty(time).GetInt64()).UtcDateTime);
+                DateTimeOffset.FromUnixTimeMilliseconds(data.GetProperty(time).GetInt64()).UtcDateTime,
+                OptionalDecimal(data, stream ? "h" : "highPrice"),
+                OptionalDecimal(data, stream ? "l" : "lowPrice"),
+                OptionalDecimal(data, stream ? "v" : "volume"),
+                OptionalDecimal(data, stream ? "q" : "quoteVolume"));
         }
         catch (Exception ex) when (ex is ArgumentException or FormatException or OverflowException or
                                    KeyNotFoundException or InvalidOperationException)
         { throw new JsonException("Invalid ticker payload", ex); }
     }
+
+    private static decimal? OptionalDecimal(JsonElement data, string name) =>
+        data.TryGetProperty(name, out var field) && field.ValueKind == JsonValueKind.String &&
+        decimal.TryParse(field.GetString(), NumberStyles.Float, CultureInfo.InvariantCulture, out var value) &&
+        value >= 0 ? value : null;
 }

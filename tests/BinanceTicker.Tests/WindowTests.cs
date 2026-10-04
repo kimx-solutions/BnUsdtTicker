@@ -57,6 +57,7 @@ public sealed class WindowTests
                     manager.CloseForExit();
                 }
 
+                MarketVisualizationWindowTests.Verify(application);
                 var ticker = new TickerViewModel(); ticker.Configure(new());
                 ticker.Update(new("BTCUSDT", 82351.2m, 2.31m, DateTime.UtcNow));
                 ticker.Update(new("ETHUSDT", 3124.5m, 1.82m, DateTime.UtcNow));
@@ -200,7 +201,7 @@ public sealed class WindowTests
                 Assert.NotNull(symbolList.SelectedItem);
                 application.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.DataBind);
                 Assert.Equal("ETHUSDT", settingsVm.SelectedSymbol?.Symbol);
-                var modeSelector = Descendants<ComboBox>(settingsWindow).Single();
+                var modeSelector = Descendants<ComboBox>(settingsWindow).Single(c => ReferenceEquals(c.ItemsSource, settingsVm.Modes));
                 modeSelector.IsDropDownOpen = true;
                 settingsWindow.UpdateLayout();
                 modeSelector.SetCurrentValue(ComboBox.SelectedItemProperty, DisplayMode.Float);
@@ -225,6 +226,7 @@ public sealed class WindowTests
                 tray.SetMode(DisplayMode.Float);
                 RenderTrayMenu(tray, "tray-menu-float-preview.png");
                 RenderTrayMenu(tray, "tray-menu-hover-preview.png", 0);
+                MarketVisualizationIntegrationTests.Verify(application);
                 VerifyRuntimePriceAlerts(application);
                 VerifyPendingPriceUpdateDrainsBeforeShutdown(application);
             }
@@ -310,6 +312,7 @@ public sealed class WindowTests
         application.Dispatcher.Invoke(() => queue.Invoke(application, [new TickerPrice("BTCUSDT", 90000m, 0m, DateTime.UtcNow.AddMinutes(1))]));
         Assert.True(alerts.Entered);
         Task? exit = null;
+        var releaseHistory = MarketVisualizationIntegrationTests.AttachPendingHistory(application);
         application.Dispatcher.Invoke(() => exit = (Task)shutdown.Invoke(application, null)!);
         Assert.NotNull(exit);
         Assert.False(exit.IsCompleted);
@@ -318,6 +321,9 @@ public sealed class WindowTests
         _ = exit.ContinueWith(_ => frame.Continue = false, CancellationToken.None,
             TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
         alerts.Release();
+        Assert.False(exit.IsCompleted);
+        Assert.True(nativeTray.Visible);
+        releaseHistory();
         if (!exit.IsCompleted)
         {
             var timeout = new System.Windows.Threading.DispatcherTimer(TimeSpan.FromSeconds(5),

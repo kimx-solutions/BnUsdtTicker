@@ -24,10 +24,31 @@ public sealed class BinanceWebSocketService
     }
 
     public async Task RunAsync(IReadOnlyList<string> symbols, Action<TickerPrice> onPrice,
-        Action<ConnectionStatus> onStatus, CancellationToken cancellationToken)
+        Action<ConnectionStatus> onStatus, CancellationToken cancellationToken, Action<CandlePrice>? onCandle = null)
+    {
+        var normalized = symbols.Select(SymbolNormalizer.Normalize).Distinct(StringComparer.Ordinal).ToArray();
+        if (normalized.Length == 0) { onStatus(ConnectionStatus.Disconnected); return; }
+        var batches = normalized.Chunk(onCandle is null ? 1024 : 512).ToArray();
+        var states = Enumerable.Repeat(ConnectionStatus.Connecting, batches.Length).ToArray();
+        var gate = new object();
+        await Task.WhenAll(batches.Select((batch, index) => RunSingleAsync(batch, onPrice, status =>
+        {
+            ConnectionStatus aggregate;
+            lock (gate)
+            {
+                states[index] = status;
+                aggregate = states.Contains(ConnectionStatus.Disconnected) ? ConnectionStatus.Disconnected :
+                    states.Contains(ConnectionStatus.Connecting) ? ConnectionStatus.Connecting : ConnectionStatus.Connected;
+            }
+            onStatus(aggregate);
+        }, cancellationToken, onCandle)));
+    }
+
+    private async Task RunSingleAsync(IReadOnlyList<string> symbols, Action<TickerPrice> onPrice,
+        Action<ConnectionStatus> onStatus, CancellationToken cancellationToken, Action<CandlePrice>? onCandle)
     {
         if (symbols.Count == 0) { onStatus(ConnectionStatus.Disconnected); return; }
-        var streams = string.Join('/', symbols.Select(s => SymbolNormalizer.Normalize(s).ToLowerInvariant() + "@ticker"));
+        var streams = string.Join('/', symbols.SelectMany(s => onCandle is null ? new[] { s.ToLowerInvariant() + "@ticker" } : new[] { s.ToLowerInvariant() + "@ticker", s.ToLowerInvariant() + "@kline_1m" }));
         var uri = new Uri("wss://stream.binance.com:9443/stream?streams=" + streams);
         var retry = 0;
         while (!cancellationToken.IsCancellationRequested)
@@ -57,11 +78,18 @@ public sealed class BinanceWebSocketService
                     try
                     {
                         using var doc = JsonDocument.Parse(message.GetBuffer().AsMemory(0, (int)message.Length));
-                        var price = TickerParser.ParseStream(doc.RootElement);
-                        if (symbols.Contains(price.Symbol, StringComparer.Ordinal))
+                        var data = doc.RootElement.TryGetProperty("data", out var wrapped) ? wrapped : doc.RootElement;
+                        if (data.TryGetProperty("e", out var eventType) && eventType.GetString() == "kline")
                         {
-                            onPrice(price);
-                            retry = 0;
+                            var candle = CandleParser.ParseStream(data);
+                            if (onCandle is not null && symbols.Contains(candle.Symbol, StringComparer.Ordinal))
+                            { onCandle(candle); retry = 0; }
+                        }
+                        else
+                        {
+                            var price = TickerParser.ParseStream(data);
+                            if (symbols.Contains(price.Symbol, StringComparer.Ordinal))
+                            { onPrice(price); retry = 0; }
                         }
                     }
                     catch (Exception ex) when (ex is JsonException or FormatException or KeyNotFoundException or

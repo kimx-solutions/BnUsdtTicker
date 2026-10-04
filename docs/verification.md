@@ -1,5 +1,49 @@
 # Verification — 2026-10-03
 
+## Issue #6 — Market visualization (2026-10-04)
+
+- Follow-up: graph visibility now uses the bottom-right chart icon, immediately
+  left of the theme switch. The top toolbar keeps only 1h/24h. Actual WPF controls
+  verified both toggle directions; dark/light/hidden renders inspected in
+  `artifacts/issue-6-icon-previews`. Updated self-contained executable:
+  `artifacts/issue-6-icon-publish/BinanceTicker.exe`.
+
+- Branch: `codex/issue-6-implementation`, based on `71c007e`.
+- Added shared 1-minute history, 1h/24h sparklines, separate market details, and
+  default-browser Binance spot links. Ticker width remains 390 DIP.
+- Release build: zero warnings/errors. Release suite: 139 passed, zero failed/skipped.
+- Self-contained Windows x64 output: `artifacts/issue-6-publish/BinanceTicker.exe`.
+- Controlled tests cover pagination beyond 1000 bars, retries/shared 429/418 pause,
+  request concurrency/spacing, immutable bounded snapshots, stream/REST races,
+  finalized bars, fixed time axis, gaps, partial history, extrema-preserving reduction,
+  mixed fragmented events, 513-symbol socket batching, reconnect demand, cancellation,
+  removed-symbol generations, preferences merge, quote/history staleness and browser failures.
+- Real WPF controls exercise range/visibility, symbol routing, independent reused
+  details, disabled-symbol closure, Float deactivation, sticky actions and graceful
+  shutdown waiting for both history and price-alert work before tray disposal.
+- Dark/light, 1h/24h, hidden, long/partial/disconnected, and details failure renders
+  inspected in `artifacts/issue-6-previews`. Preview prices are controlled test data.
+- Live public Binance check: two BTCUSDT kline tuples each had 12 fields and 60000 ms
+  spacing; ticker snapshot contained high/low/base volume/quote volume; the same
+  combined socket delivered both `24hrTicker` and `kline` events.
+- Implementation decisions: retain 24h plus a boundary (approximately 1442 bars,
+  hard cap 1500), rather than filling a target of 1500 older bars; new visualization
+  STA checks share the existing lifecycle test because WPF permits only one
+  Application per process.
+- One independent whole-branch review confirmed a slot-release/pause race and a
+  hidden-view recovery gap; both were reproduced RED and fixed GREEN. Added short
+  and >24h hidden outages, manual partial-history retry, and queued asynchronous
+  rate-limit regressions. Coverage/freshness tooltip feedback was promoted from
+  Minor to Important because users need actual data age/range separately from
+  quote timestamps; formatting and actual WPF tooltip bindings/hit area were
+  verified RED→GREEN. Full suite after the fix pass: 139/139. No deferred findings
+  or declined-to-judge behaviors.
+
+Physical mouse dragging/focus on real mixed-DPI monitors, OS display of notifications,
+and opening the real default browser remain manual acceptance checks. Tests exercise
+native window events and the browser boundary without opening a user's browser or
+reading/writing their real settings.
+
 ## Issue #3 — Price alerts
 
 - Follow-up: each ticker row has a bell that opens an independent per-symbol alert

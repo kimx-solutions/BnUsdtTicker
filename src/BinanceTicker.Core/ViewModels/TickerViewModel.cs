@@ -30,6 +30,53 @@ public sealed class TickerRowViewModel(string symbol) : ObservableObject
     }.Where(s => s is not null)) + "；點擊開啟警示視窗重設。";
     public string UpdatedText => price is null ? "等待報價" : "更新於 " + price.UpdatedAt.ToLocalTime().ToString("HH:mm:ss");
 
+    private SparklineSeries? series;
+    private string quoteStatusText = "等待報價";
+    private string historyStatusText = "等待走勢資料";
+    public SparklineSeries? Series { get => series; private set => Set(ref series, value); }
+    public string QuoteStatusText { get => quoteStatusText; private set => Set(ref quoteStatusText, value); }
+    public string HistoryStatusText { get => historyStatusText; private set => Set(ref historyStatusText, value); }
+    private string historyUpdatedText = "等待走勢資料";
+    private string historyCoverageText = "尚無有效走勢資料";
+    private string sparklineToolTip = "等待走勢資料";
+    public string HistoryUpdatedText { get => historyUpdatedText; private set => Set(ref historyUpdatedText, value); }
+    public string HistoryCoverageText { get => historyCoverageText; private set => Set(ref historyCoverageText, value); }
+    public string SparklineToolTip { get => sparklineToolTip; private set => Set(ref sparklineToolTip, value); }
+    public string HighPriceText => FormatOptional(price?.HighPrice24h);
+    public string LowPriceText => FormatOptional(price?.LowPrice24h);
+    public string VolumeText => FormatOptional(price?.Volume24h, Asset);
+    public string QuoteVolumeText => FormatOptional(price?.QuoteVolume24h, "USDT");
+    private static string FormatOptional(decimal? value, string? unit = null) =>
+        value is null ? "—" : PriceFormatter.Format(value.Value) + (unit is null ? "" : " " + unit);
+
+    public void UpdateHistory(IReadOnlyList<CandlePrice> candles, HistoryLoadState state,
+        ConnectionStatus status, string range, DateTimeOffset now)
+    {
+        Series = SparklineProjection.Create(candles, now, range == "24h" ? TimeSpan.FromHours(24) : TimeSpan.FromHours(1));
+        QuoteStatusText = price is null ? "等待報價" :
+            status != ConnectionStatus.Connected ? "連線中斷 · 保留最後報價" :
+            now - new DateTimeOffset(price.UpdatedAt.ToUniversalTime()) > TimeSpan.FromSeconds(60) ? "報價逾期 · 保留最後報價" : "即時報價";
+        var latest = candles.Count == 0 ? (DateTimeOffset?)null : candles.Max(c => c.UpdatedAt);
+        HistoryUpdatedText = latest is null ? "等待走勢資料" : "走勢更新於 " + latest.Value.ToLocalTime().ToString("MM/dd HH:mm:ss");
+        var points = Series.Segments.SelectMany(s => s.Points).ToArray();
+        HistoryCoverageText = points.Length == 0 ? "尚無有效走勢資料" :
+            "有效資料 " + points.Min(p => p.Time).ToLocalTime().ToString("MM/dd HH:mm:ss") + " — " +
+            points.Max(p => p.Time).ToLocalTime().ToString("MM/dd HH:mm:ss");
+        HistoryStatusText = state.Status switch
+        {
+            HistoryLoadStatus.Loading => "走勢資料載入中…",
+            HistoryLoadStatus.Failed => "走勢資料載入失敗 · 可重試",
+            _ when latest is null || !Series.HasData => "走勢資料不足",
+            _ when status != ConnectionStatus.Connected => "連線中斷 · 保留走勢資料",
+            _ when now - latest.Value > TimeSpan.FromSeconds(60) => "走勢資料逾期",
+            _ when !Series.IsComplete => "部分走勢資料",
+            _ => ""
+        };
+        SparklineToolTip = range + " 走勢 · " + (HistoryStatusText.Length == 0 ? "完整資料" : HistoryStatusText) +
+            "\n" + HistoryCoverageText + "\n" + HistoryUpdatedText +
+            "\n曲線顏色依所選時段方向；旁邊數值為 Binance 滾動 24h 漲跌幅。";
+    }
+
     public bool Update(TickerPrice value)
     {
         if (price is not null && value.UpdatedAt < price.UpdatedAt) return false;
@@ -37,6 +84,7 @@ public sealed class TickerRowViewModel(string symbol) : ObservableObject
         Notify(nameof(Price)); Notify(nameof(ChangePercent24h));
         Notify(nameof(PriceText)); Notify(nameof(ChangeText)); Notify(nameof(IsPositive));
         Notify(nameof(HasPrice)); Notify(nameof(UpdatedText));
+        Notify(nameof(HighPriceText)); Notify(nameof(LowPriceText)); Notify(nameof(VolumeText)); Notify(nameof(QuoteVolumeText));
         return true;
     }
 
@@ -67,6 +115,17 @@ public sealed class TickerViewModel : ObservableObject
     public string ChangeSortHeader => "24h" + SortIndicator(TickerSortColumn.ChangePercent);
     public string SortDescription => sortColumn is null ? "點擊欄位標題排序。" :
         $"目前依{sortColumn switch { TickerSortColumn.Symbol => "幣種", TickerSortColumn.Price => "價格", _ => "24 小時漲跌幅" }}{(sortDescending ? "降冪" : "升冪")}排序；再次點擊同一欄位切換方向。";
+    private bool showSparkline = true;
+    private string sparklineRange = "1h";
+    public bool ShowSparkline { get => showSparkline; private set => Set(ref showSparkline, value); }
+    public string SparklineRange { get => sparklineRange; private set { if (Set(ref sparklineRange, value)) { Notify(nameof(IsHourRange)); Notify(nameof(IsDayRange)); } } }
+    public bool IsHourRange => SparklineRange == "1h";
+    public bool IsDayRange => SparklineRange == "24h";
+    public string SparklineToggleText => ShowSparkline ? "隱藏走勢" : "顯示走勢";
+    public RelayCommand SelectHourCommand { get; }
+    public RelayCommand SelectDayCommand { get; }
+    public RelayCommand ToggleSparklineCommand { get; }
+    public event Action? SparklinePreferencesChanged;
     public RelayCommand SortSymbolCommand { get; }
     public RelayCommand SortPriceCommand { get; }
     public RelayCommand SortChangeCommand { get; }
@@ -86,9 +145,19 @@ public sealed class TickerViewModel : ObservableObject
 
     public TickerViewModel()
     {
+        SelectHourCommand = new(() => SelectRange("1h"));
+        SelectDayCommand = new(() => SelectRange("24h"));
+        ToggleSparklineCommand = new(() => { ShowSparkline = !ShowSparkline; Notify(nameof(SparklineToggleText)); SparklinePreferencesChanged?.Invoke(); });
         SortSymbolCommand = new(() => SortBy(TickerSortColumn.Symbol));
         SortPriceCommand = new(() => SortBy(TickerSortColumn.Price));
         SortChangeCommand = new(() => SortBy(TickerSortColumn.ChangePercent));
+    }
+
+    private void SelectRange(string range)
+    {
+        if (SparklineRange == range) return;
+        SparklineRange = range;
+        SparklinePreferencesChanged?.Invoke();
     }
 
     public void Configure(AppSettings settings)
@@ -101,6 +170,9 @@ public sealed class TickerViewModel : ObservableObject
             row.SetAlertState(symbol.Alert);
             Prices.Add(row);
         }
+        ShowSparkline = settings.Ui.ShowSparkline;
+        SparklineRange = settings.Ui.SparklineRange == "24h" ? "24h" : "1h";
+        Notify(nameof(SparklineToggleText));
         ShowChangePercent = settings.Ui.ShowChangePercent;
         CompactMode = settings.Ui.CompactMode;
         SetMode(settings.Mode);
