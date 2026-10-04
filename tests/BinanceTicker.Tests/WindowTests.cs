@@ -57,6 +57,7 @@ public sealed class WindowTests
                     manager.CloseForExit();
                 }
 
+                MarketVisualizationWindowTests.Verify(application);
                 var ticker = new TickerViewModel(); ticker.Configure(new());
                 ticker.Update(new("BTCUSDT", 82351.2m, 2.31m, DateTime.UtcNow));
                 ticker.Update(new("ETHUSDT", 3124.5m, 1.82m, DateTime.UtcNow));
@@ -200,7 +201,7 @@ public sealed class WindowTests
                 Assert.NotNull(symbolList.SelectedItem);
                 application.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.DataBind);
                 Assert.Equal("ETHUSDT", settingsVm.SelectedSymbol?.Symbol);
-                var modeSelector = Descendants<ComboBox>(settingsWindow).Single();
+                var modeSelector = Descendants<ComboBox>(settingsWindow).Single(c => ReferenceEquals(c.ItemsSource, settingsVm.Modes));
                 modeSelector.IsDropDownOpen = true;
                 settingsWindow.UpdateLayout();
                 modeSelector.SetCurrentValue(ComboBox.SelectedItemProperty, DisplayMode.Float);

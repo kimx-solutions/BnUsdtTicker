@@ -61,6 +61,12 @@
                 <CheckBox Content="啟動時顯示報價" IsChecked="{Binding ShowOnStartup}" Margin="0,0,0,10" />
                 <CheckBox Content="顯示 24 小時漲跌幅" IsChecked="{Binding ShowChangePercent}" Margin="0,0,0,10" />
                 <CheckBox Content="緊湊列高" IsChecked="{Binding CompactMode}" Margin="0,0,0,12" />
+                <CheckBox Content="顯示價格走勢" IsChecked="{Binding ShowSparkline}" Margin="0,0,0,10" />
+                <Grid Margin="0,0,0,12">
+                    <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="120" /></Grid.ColumnDefinitions>
+                    <TextBlock Text="走勢範圍" VerticalAlignment="Center" />
+                    <ComboBox Grid.Column="1" ItemsSource="{Binding SparklineRanges}" SelectedItem="{Binding SparklineRange}" AutomationProperties.Name="走勢範圍" />
+                </Grid>
                 <Grid Margin="0,0,0,8">
                     <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                     <TextBlock Text="不透明度" VerticalAlignment="Center" />
