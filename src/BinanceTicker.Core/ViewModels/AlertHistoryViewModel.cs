@@ -10,7 +10,7 @@ public sealed class AlertHistoryViewModel : ObservableObject
 {
     private readonly AlertHistoryService history;
     private IReadOnlyList<AlertHistoryEntry> all = [];
-    private string symbolFilter = "";
+    private string symbolFilter = "全部幣種";
     private AlertType? typeFilter;
     private DateTime? startDate, endDate;
     private bool newestFirst = true;
@@ -34,7 +34,7 @@ public sealed class AlertHistoryViewModel : ObservableObject
     {
         this.history = history;
         ReloadCommand = new(Reload);
-        ClearFiltersCommand = new(() => { SymbolFilter = ""; TypeFilter = null; StartDate = null; EndDate = null; });
+        ClearFiltersCommand = new(() => { SymbolFilter = "全部幣種"; TypeFilter = null; StartDate = null; EndDate = null; });
     }
     public void Reload()
     {

@@ -12,8 +12,10 @@
             <DataTemplate DataType="{x:Type vm:AlertPolicyEditorViewModel}">
                 <StackPanel Margin="0,0,0,14">
                     <TextBlock Text="提醒策略" Margin="0,0,0,6" />
-                    <ComboBox ItemsSource="{Binding Strategies}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding Strategy}" AutomationProperties.Name="提醒策略" MinHeight="32"
-                              Foreground="{DynamicResource SettingsText}" Background="{DynamicResource SettingsInput}" />
+                    <ComboBox ItemsSource="{Binding Strategies}" SelectedValuePath="Value" SelectedValue="{Binding Strategy}" AutomationProperties.Name="提醒策略" MinHeight="32"
+                              Foreground="{DynamicResource SettingsText}" Background="{DynamicResource SettingsInput}">
+                        <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Label}" /></DataTemplate></ComboBox.ItemTemplate>
+                    </ComboBox>
                     <StackPanel Margin="0,10,0,0">
                         <StackPanel.Style><Style TargetType="StackPanel"><Style.Triggers><DataTrigger Binding="{Binding IsRepeat}" Value="False"><Setter Property="Visibility" Value="Collapsed" /></DataTrigger></Style.Triggers></Style></StackPanel.Style>
                         <TextBlock Text="冷卻時間 · 分鐘（0–1440）" Margin="0,0,0,6" />
