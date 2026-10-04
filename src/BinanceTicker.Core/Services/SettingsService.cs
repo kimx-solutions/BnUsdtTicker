@@ -61,8 +61,7 @@ public sealed class SettingsService
         {
             s.Symbol = SymbolNormalizer.Normalize(s.Symbol);
             s.Alert ??= new();
-            if (s.Alert.UpperPrice is <= 0 || s.Alert.LowerPrice is <= 0)
-                throw new JsonException("Alert prices must be positive.");
+            s.Alert.Validate();
             return symbols.Add(s.Symbol);
         }).ToList();
         for (var i = 0; i < settings.Symbols.Count; i++) settings.Symbols[i].Order = i + 1;

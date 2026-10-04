@@ -105,3 +105,30 @@ atomicity across two files and shell submission are outside the service's guaran
 Physical mixed-DPI monitor unplug/replug and real mouse dragging/focus interactions remain
 manual acceptance checks listed in README. Native event behavior is exercised deterministically
 in tests; it does not substitute for physical monitor hardware verification.
+
+## Issue #7 advanced alerts verification (2026-10-04)
+
+- Release build: zero warnings/errors; full test suite: 178 passed, 0 failed/skipped.
+- Controlled event/receipt time tests cover complete rolling baselines, positive/negative boundaries,
+  5-second tolerance and continuity, REST exclusion, stale/duplicate/out-of-order events and per-symbol gaps.
+- Repeat tests cover outside observations, consumed cooldown crossings, exact cooldown boundary,
+  restart disarming, clock rollback, concurrent submissions, state/history write failures and notification rollback.
+- Editing tests cover four-condition reset, independent drafts, latest cooldown preservation,
+  validation, whole-settings merge and transient comparison readiness.
+- History tests cover mixed legacy/wave records, removed symbols, type/date filtering,
+  inclusive end dates, actual-instant stable ordering, corrupt-file preservation and retry.
+- STA WPF exercises history singleton/minimize/restore, themes, real grids and editor controls,
+  readable selector labels, narrow layouts, full quote routing and shutdown drain.
+- Preview artifacts: artifacts/issue-7-previews (dark/light history, corruption, advanced editor).
+- Windows x64 self-contained publish succeeded: artifacts/issue-7-publish/BinanceTicker.exe.
+- Independent review found two P2 issues: price-notification failure interrupted short-term samples,
+  and bulk condition edits persisted arming before conservative disarming. Both reproduced RED,
+  fixed with regression tests, and confirmed resolved in a focused independent follow-up.
+- Real UI interaction checks also verify type/date filters, selected wave details, strategy/cooldown
+  bindings, hidden-sparkline quote delivery and disconnect routing.
+- Initial reviewer was unavailable due to workspace credits; the replacement reviewer completed
+  read-only review and follow-up. No deferred actionable findings remain.
+
+Native Windows banner visibility remains manual (including Do Not Disturb); submission and
+complete durable rollback are tested without touching the user's local settings or real quotes.
+Cross-file persistence and shell notification are not atomic across process termination/power loss.

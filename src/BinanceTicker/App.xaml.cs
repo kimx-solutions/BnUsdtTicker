@@ -32,6 +32,8 @@ public partial class App : Application
     private bool exiting;
     private int feedGeneration;
     private IPriceAlertService alerts = null!;
+    private AlertHistoryWindowManager? alertHistory;
+    private PriceAlertService? submittingAlerts;
     private readonly HashSet<Task> pendingPriceUpdates = [];
     private DateTimeOffset lastAlertWarning = DateTimeOffset.MinValue;
     protected override async void OnStartup(StartupEventArgs e)
@@ -49,8 +51,12 @@ public partial class App : Application
         window.SettingsRequested += OpenSettings;
         window.PriceAlertRequested += OpenPriceAlert;
         window.ThemeRequested += ToggleTheme;
-        tray = new(Dispatcher, manager.Show, OpenSettings, ChangeMode, () => _ = ExitAsync());
-        alerts = new PriceAlertService(settings, settingsService, new AlertHistoryService(), new NotificationService(tray));
+        tray = new(Dispatcher, manager.Show, OpenSettings, ChangeMode, () => _ = ExitAsync(), OpenAlertHistory);
+        var history = new AlertHistoryService();
+        alertHistory = new(history);
+        submittingAlerts = new PriceAlertService(settings, settingsService, history, new NotificationService(tray));
+        submittingAlerts.Submitted += OnAlertSubmitted;
+        alerts = submittingAlerts;
         tray.SetMode(settings.Mode);
         if (settings.ShowOnStartup) manager.Show();
         if (settingsService.LoadWarning is { } warning) tray.ShowWarning(warning);
@@ -128,6 +134,7 @@ public partial class App : Application
         settingsWindow?.RefreshTheme();
         foreach (var window in priceAlertWindows.Values) window.RefreshTheme();
         marketDetails?.RefreshTheme();
+        alertHistory?.RefreshTheme();
         tray?.RefreshTheme();
         SaveSettings();
     }
@@ -139,6 +146,8 @@ public partial class App : Application
         settingsWindow.Closed += (_, _) => settingsWindow = null;
         settingsWindow.Show(); settingsWindow.Activate();
     }
+    private void OpenAlertHistory() { if (!exiting) alertHistory?.Show(); }
+    private void OnAlertSubmitted(AlertHistoryEntry entry) => Dispatcher.BeginInvoke(() => { if (!exiting) alertHistory?.Refresh(); });
     private async Task<bool> ApplySettingsAsync(AppSettings updated)
     {
         if (exiting) return false;
@@ -171,8 +180,9 @@ public partial class App : Application
         if (item is null) return;
         var editor = new PriceAlertEditorViewModel(symbol, item.Alert);
         var window = new PriceAlertWindow(editor, (alert, resets) => SavePriceAlertAsync(symbol, editor, alert, resets));
+        window.HistoryRequested += OpenAlertHistory;
         priceAlertWindows.Add(symbol, window);
-        window.Closed += (_, _) => priceAlertWindows.Remove(symbol);
+        window.Closed += (_, _) => { window.HistoryRequested -= OpenAlertHistory; priceAlertWindows.Remove(symbol); };
         window.Show(); window.Activate();
     }
     private async Task<bool> SavePriceAlertAsync(string symbol, PriceAlertEditorViewModel editor,
@@ -215,6 +225,7 @@ public partial class App : Application
             {
                 ticker.SetStatus(status);
                 marketHistory?.OnConnectionStatus(status);
+                QueueAlertConnectionStatus(status);
             }), token, candle => OnUi(() => candleCache.Merge(candle, DateTimeOffset.UtcNow))));
             UpdateHistoryDemand();
         }
@@ -227,12 +238,19 @@ public partial class App : Application
         try { await task; }
         finally { pendingPriceUpdates.Remove(task); }
     }
+    private async void QueueAlertConnectionStatus(ConnectionStatus status)
+    {
+        var task = alerts.OnConnectionStatusAsync(status);
+        pendingPriceUpdates.Add(task);
+        try { await task; RefreshAlertWindows(); }
+        finally { pendingPriceUpdates.Remove(task); }
+    }
 
     private async Task UpdatePriceAsync(TickerPrice price)
     {
         // Ignore quotes older than the row's last accepted timestamp, including reconnect snapshots.
         if (!ticker.Update(price)) return;
-        try { await alerts.CheckAsync(price.Symbol, price.Price); }
+        try { await alerts.CheckQuoteAsync(price); }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or
             InvalidOperationException or System.ComponentModel.Win32Exception or AggregateException)
         {
@@ -256,6 +274,7 @@ public partial class App : Application
         catch (OperationCanceledException) { }
         catch (Exception ex) { tray?.ShowWarning("行情連線已停止：" + ex.Message); }
         feedCancellation?.Dispose(); feedCancellation = null;
+        if (alerts is not null) await alerts.OnConnectionStatusAsync(ConnectionStatus.Disconnected);
     }
     private async Task ExitAsync()
     {
@@ -270,6 +289,8 @@ public partial class App : Application
         }
         if (marketDetails is not null) marketDetails.OpenSymbolsChanged -= UpdateHistoryDemand;
         marketDetails?.CloseAll();
+        alertHistory?.Close();
+        if (submittingAlerts is not null) submittingAlerts.Submitted -= OnAlertSubmitted;
         manager?.SavePosition(); settingsWindow?.Close();
         foreach (var window in priceAlertWindows.Values.ToArray()) window.Close();
         await feedGate.WaitAsync();

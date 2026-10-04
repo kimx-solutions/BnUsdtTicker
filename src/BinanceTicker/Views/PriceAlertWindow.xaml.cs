@@ -10,6 +10,7 @@ public partial class PriceAlertWindow : Window
     private readonly Func<PriceAlertSettings, IReadOnlyList<AlertResetRequest>, Task<bool>> save;
     private bool saving;
     public PriceAlertEditorViewModel ViewModel { get; }
+    public event Action? HistoryRequested;
 
     public PriceAlertWindow(PriceAlertEditorViewModel viewModel,
         Func<PriceAlertSettings, IReadOnlyList<AlertResetRequest>, Task<bool>> save)
@@ -31,6 +32,7 @@ public partial class PriceAlertWindow : Window
     }
     public void RefreshTheme() => ThemeService.RefreshWindowFrame(this);
     private void CancelClicked(object sender, RoutedEventArgs e) => Close();
+    private void HistoryClicked(object sender, RoutedEventArgs e) => HistoryRequested?.Invoke();
     private async void SaveClicked(object sender, RoutedEventArgs e)
     {
         if (saving) return;
