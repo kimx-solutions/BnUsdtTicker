@@ -82,7 +82,7 @@ jobs:
           if ($publishedFiles.Count -ne 1 -or $publishedFiles[0].Name -ne 'BinanceTicker.exe') {
             throw 'Expected a single published BinanceTicker.exe.'
           }
-          $executableName = "BinanceTicker-$env:RELEASE_TAG-win-x64.exe"
+          $executableName = 'BinanceTicker.exe'
           $executablePath = Join-Path artifacts/release $executableName
           Copy-Item -LiteralPath artifacts/publish/BinanceTicker.exe -Destination $executablePath
           $hash = (Get-FileHash -LiteralPath $executablePath -Algorithm SHA256).Hash.ToLowerInvariant()

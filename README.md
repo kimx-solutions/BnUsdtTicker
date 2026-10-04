@@ -51,7 +51,7 @@ Windows 桌面視窗，顯示你選擇的幣種價格與 24 小時漲跌幅。
 
 [**前往 GitHub Releases 下載**](https://github.com/kimx-solutions/BnUsdtTicker/releases)
 
-版本發佈後，在 Release 的 **Assets** 下載 `BinanceTicker-v版本號-win-x64.exe`。
+版本發佈後，在 Release 的 **Assets** 下載 `BinanceTicker.exe`。
 單一執行檔適用於 Windows x64，內含 .NET 執行環境，不需要另外安裝 .NET。
 
 1. 下載 EXE，放到你喜歡的資料夾。
@@ -333,8 +333,8 @@ git push origin v1.0.0
 
 Release 附件：
 
-- `BinanceTicker-v1.0.0-win-x64.exe`：完整程式與 .NET runtime，內嵌本專案 LICENSE。
-- `BinanceTicker-v1.0.0-win-x64.exe.sha256`：EXE 的 SHA256 校驗值。
+- `BinanceTicker.exe`：完整程式與 .NET runtime，內嵌本專案 LICENSE。
+- `BinanceTicker.exe.sha256`：EXE 的 SHA256 校驗值。
 
 下載並直接執行 EXE，無需解壓縮或安裝 .NET。README 與設定範例可在原始碼中查看。
 Workflow 使用 GitHub 自動提供的 `GITHUB_TOKEN`，不需另外設定 PAT。
