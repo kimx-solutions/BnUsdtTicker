@@ -71,7 +71,7 @@ public partial class App : Application
         marketHistory ??= new(new BinanceHistoryService(new HistoryRequestScheduler(http)), candleCache);
         marketDetails = new(symbol =>
         {
-            var row = ticker.Prices.FirstOrDefault(r => r.Symbol == symbol);
+            var row = ticker.GetRow(symbol);
             return row is null ? null : new(row, () => marketHistory.EnsureLoadedAsync(symbol, true), browser.Open);
         });
         marketDetails.OpenSymbolsChanged += UpdateHistoryDemand;
@@ -115,7 +115,7 @@ public partial class App : Application
         ticker.RefreshPortfolio(now);
         if(marketHistory is null)return;
         var demanded = GetHistoryDemand().ToHashSet(StringComparer.Ordinal);
-        foreach (var row in ticker.Prices.Where(r => demanded.Contains(r.Symbol)))
+        foreach (var row in demanded.Select(ticker.GetRow).OfType<TickerRowViewModel>())
             row.UpdateHistory(candleCache.GetSnapshot(row.Symbol, now), marketHistory.GetState(row.Symbol),
                 ticker.Status, ticker.SparklineRange, now);
     }
@@ -191,7 +191,7 @@ public partial class App : Application
             if (existing.WindowState == WindowState.Minimized) existing.WindowState = WindowState.Normal;
             existing.Activate(); return;
         }
-        var item = settings.Symbols.FirstOrDefault(s => s.Symbol == symbol && s.Enabled);
+        var item = settings.Symbols.FirstOrDefault(s => s.Symbol == symbol);
         if (item is null) return;
         var editor = new PriceAlertEditorViewModel(symbol, item.Alert);
         var window = new PriceAlertWindow(editor, (alert, resets) => SavePriceAlertAsync(symbol, editor, alert, resets));

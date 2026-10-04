@@ -22,6 +22,7 @@ public sealed partial class TickerViewModel
     public PortfolioSummary CurrentPortfolio { get; private set; }=new(0,0,0,null,0,0,0,0,false);
     public PortfolioSummary TotalPortfolio { get; private set; }=new(0,0,0,null,0,0,0,0,false);
     public event Action? WatchlistPreferencesChanged;
+    public TickerRowViewModel? GetRow(string symbol) => rows.GetValueOrDefault(symbol);
     public void SelectWatchlist(string id)
     {
         if(watchlistSettings is null || id==ActiveWatchlistId || !Watchlists.Any(g=>g.Id==id))return;

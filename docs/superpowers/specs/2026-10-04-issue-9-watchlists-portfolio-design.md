@@ -2,7 +2,7 @@
 
 - 日期：2026-10-04（Asia/Taipei）
 - 來源：https://github.com/kimx-solutions/BnUsdtTicker/issues/9
-- 使用者已確認聊天中的設計方向；本文件待確認後進入實作計畫。
+- 使用者已確認設計與規格並指示開始實作。實作與驗證完成；獨立審查額度不足，改採自我審查，見 docs/verification.md。
 
 ## 目標與範圍
 

@@ -192,7 +192,7 @@ Merged main f70895e (issue #7) into the issue #8 branch. Preserved both tray ent
   bindings, long lists, 360 × 260 DIP ticker, small settings, fixed save/cancel controls and both themes.
 - Preview PNGs are generated in `artifacts/issue-9/previews`; visual inspection caught and corrected custom
   ComboBox selection rendering and foreground inheritance in the holding editor.
-- Release build: zero warnings/errors. Complete suite: 246 passed, zero failed/skipped.
+- Release build: zero warnings/errors. Complete suite after review fixes: 248 passed, zero failed/skipped.
 - Windows x64 self-contained publish verified at `artifacts/issue-9/publish/BinanceTicker.exe`.
 
 Manual acceptance: use real Binance quotes to compare edited holdings; restart with multiple groups,
@@ -200,3 +200,28 @@ switch groups while an off-screen alert triggers, disconnect/reconnect and check
 native mouse/keyboard on the group dropdown and nested settings scroll areas. Tests do not edit user
 settings or contact Binance. No account connection, trading, startup-setting change or release publication
 is performed during verification.
+
+### Final review and execution decisions
+
+An independent reviewer was requested through the review skill, but the review agent failed before
+reviewing code because the workspace reported insufficient credits. Completed an author self-review
+instead; this is weaker than independent review. The review found two actionable integration defects:
+an open market-details window stopped receiving candle projections after its symbol left the selected
+group, and a visible symbol with globally disabled alerts could not open its alert editor. Both were
+reproduced by failing STA integration assertions and fixed; the final full suite passed 248/248.
+Additional real PriceAlertService tests verify hidden/orphan alerts and merging a trigger that occurs
+while the grouped settings editor remains open. No deferred code defects were identified.
+
+Execution choices:
+
+- Used the existing dedicated issue-9 branch in the shared checkout. This retains immediate visibility
+  in the user's workspace; it provides less isolation than a separate worktree.
+- Used native PowerShell logs and a task ledger instead of bash-based skill helpers. Task bookkeeping
+  was manual and checked against command output.
+- Preserved single-list enabled/order behavior for legacy programmatic settings-editor callers before
+  they supply explicit groups. New persisted groups use independent visibility and alert enablement;
+  the compatibility path differs from the new grouped API.
+- Added WPF checks to the existing single STA lifecycle instead of creating extra Application
+  instances. This respects WPF's singleton constraint; failures share one test-harness result.
+- Used self-review after independent review was unavailable; residual risk is the absence of a fresh
+  second reviewer. No merge, push or GitHub release was performed.
