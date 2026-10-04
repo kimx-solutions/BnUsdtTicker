@@ -26,7 +26,7 @@ public static class TickerParser
                 OptionalDecimal(data, stream ? "h" : "highPrice"),
                 OptionalDecimal(data, stream ? "l" : "lowPrice"),
                 OptionalDecimal(data, stream ? "v" : "volume"),
-                OptionalDecimal(data, stream ? "q" : "quoteVolume"));
+                OptionalDecimal(data, stream ? "q" : "quoteVolume"), stream ? QuoteSource.Stream : QuoteSource.Rest);
         }
         catch (Exception ex) when (ex is ArgumentException or FormatException or OverflowException or
                                    KeyNotFoundException or InvalidOperationException)
