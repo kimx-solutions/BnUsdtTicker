@@ -85,6 +85,7 @@
                     <TextBlock Text="USDT TICKER" FontWeight="SemiBold" FontSize="12" />
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal">
+                    <Button Style="{StaticResource HeaderButton}" Content="⇄" ToolTip="換幣比較" AutomationProperties.Name="換幣比較" Click="SwapComparisonsClicked" />
                     <Button Style="{StaticResource HeaderButton}" Content="⚙" ToolTip="設定" Click="SettingsClicked" />
                     <Button Style="{StaticResource HeaderButton}" Content="✕" ToolTip="隱藏報價（程式繼續常駐）" Click="HideClicked" />
                 </StackPanel>

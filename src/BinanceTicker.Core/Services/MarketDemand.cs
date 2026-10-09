@@ -10,6 +10,7 @@ public static class MarketDemand
         ? settings.Symbols.Where(s=>s.Enabled).Select(s=>s.Symbol)
         : settings.Watchlists.SelectMany(g=>g.Members).Where(m=>m.Enabled).Select(m=>m.Symbol))
         .Concat(settings.Holdings.Where(h=>h.Quantity>0).Select(h=>h.Symbol))
+        .Concat(settings.SwapComparisons.Where(s=>s.Enabled && s.InvalidReason is null).SelectMany(s=>new[] { s.FromSymbol,s.ToSymbol }))
         .Concat(settings.Symbols.Where(s=>s.Enabled && HasAlert(s.Alert)).Select(s=>s.Symbol))
         .Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
 }

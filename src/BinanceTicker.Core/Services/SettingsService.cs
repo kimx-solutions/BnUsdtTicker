@@ -25,6 +25,11 @@ public sealed class SettingsService
             var settings = JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(FilePath), AtomicJsonFile.Options)
                 ?? throw new JsonException("Empty settings.");
             Normalize(settings);
+            if (settings.SwapComparisons.Any(s => s.InvalidReason is not null))
+            {
+                BackupInvalidComparisons();
+                LoadWarning = "部分換幣紀錄損壞，已保留原檔備份。請在換幣比較中修正或刪除後再儲存設定。";
+            }
             return settings;
         }
         catch (Exception ex) when (ex is JsonException or ArgumentException)
@@ -37,18 +42,68 @@ public sealed class SettingsService
         }
     }
 
-    public void Save(AppSettings settings)
+    public void Save(AppSettings settings) => SaveCore(settings, null);
+
+    // Only an explicit correction/removal may carry forward other quarantined
+    // records, and their original JSON must remain byte-for-byte unchanged.
+    public void SaveWithComparisonRecovery(AppSettings updated, AppSettings previous) => SaveCore(updated, previous);
+
+    private void SaveCore(AppSettings settings, AppSettings? previous)
     {
         lock (AtomicJsonFile.Gate(FilePath))
         {
             var copy = settings.Copy();
             Normalize(copy);
+            if (copy.SwapComparisons.Any(s => s.InvalidReason is not null) && !IsComparisonRepair(copy, previous))
+                throw new ArgumentException("請先在換幣比較中修正或刪除損壞的紀錄；原設定與備份仍保留。");
+            if (previous?.SwapComparisons.Any(s => s.InvalidReason is not null) == true && File.Exists(FilePath))
+                BackupInvalidComparisons();
             AtomicJsonFile.Write(FilePath, copy);
         }
     }
 
+    private static bool IsComparisonRepair(AppSettings updated, AppSettings? previous)
+    {
+        if (previous is null) return false;
+        var damaged = previous.SwapComparisons.Where(s => s.InvalidReason is not null).ToArray();
+        var hasRepair = damaged.Any(old => !updated.SwapComparisons.Any(s => s.Id == old.Id && s.InvalidReason is not null));
+        return hasRepair && updated.SwapComparisons.Where(s => s.InvalidReason is not null).All(s =>
+            s.InvalidJson is not null && damaged.Any(old => old.Id == s.Id && old.InvalidJson == s.InvalidJson));
+    }
+
+    private void BackupInvalidComparisons()
+    {
+        var bytes = File.ReadAllBytes(FilePath);
+        var hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(bytes));
+        var archive = FilePath + ".swap-invalid." + hash + ".bak";
+        if (!File.Exists(archive)) File.Copy(FilePath, archive);
+        File.Copy(FilePath, FilePath + ".swap-invalid.bak", true);
+    }
+
     private static void Normalize(AppSettings settings)
     {
+        settings.SwapComparisons ??= [];
+        var comparisonIds = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var comparison in settings.SwapComparisons)
+        {
+            if (comparison.InvalidReason is not null)
+            {
+                if (!comparisonIds.Add(comparison.Id))
+                    do { comparison.Id = Guid.NewGuid().ToString("N"); } while (!comparisonIds.Add(comparison.Id));
+                continue;
+            }
+            try
+            {
+                comparison.Validate(DateTimeOffset.UtcNow);
+                if (!comparisonIds.Add(comparison.Id))
+                {
+                    comparison.InvalidJson = JsonSerializer.Serialize(comparison, AtomicJsonFile.Options);
+                    do { comparison.Id = Guid.NewGuid().ToString("N"); } while (!comparisonIds.Add(comparison.Id));
+                    throw new ArgumentException("重複的換幣紀錄識別碼。");
+                }
+            }
+            catch (ArgumentException ex) { comparison.InvalidReason = ex.Message; comparison.Enabled = false; }
+        }
         if (settings.Window is null || settings.Ui is null || settings.Symbols is null ||
             settings.Symbols.Any(s => s is null) || !Enum.IsDefined(settings.Mode) || !Enum.IsDefined(settings.Ui.Theme))
             throw new JsonException("Invalid settings structure.");

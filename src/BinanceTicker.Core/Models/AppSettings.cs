@@ -15,6 +15,7 @@ public sealed class AppSettings
     public List<WatchlistGroup>? Watchlists { get; set; }
     public string? ActiveWatchlistId { get; set; }
     public List<HoldingSetting> Holdings { get; set; } = [];
+    public List<SwapComparisonSetting> SwapComparisons { get; set; } = [];
     public List<SymbolSetting> Symbols { get; set; } =
     [
         new() { Symbol = "BTCUSDT", Order = 1 },
@@ -32,7 +33,8 @@ public sealed class AppSettings
         Symbols = Symbols.Select(s => s.Copy()).ToList(),
         Watchlists = Watchlists?.Select(g => g.Copy()).ToList(),
         ActiveWatchlistId = ActiveWatchlistId,
-        Holdings = Holdings.Select(h => h.Copy()).ToList()
+        Holdings = Holdings.Select(h => h.Copy()).ToList(),
+        SwapComparisons = SwapComparisons.Select(s => s.Copy()).ToList()
     };
 }
 

@@ -47,13 +47,15 @@ public partial class App : Application
         binance = new(http);
         ThemeService.Apply(settings.Ui.Theme);
         ticker.Configure(settings);
+        InitializeSwapComparisons();
         var window = new TickerWindow { DataContext = ticker };
         manager = new(window, settings, SaveSettings);
         InitializeMarketVisualization(window);
         window.SettingsRequested += OpenSettings;
+        window.SwapComparisonsRequested += OpenSwapComparisons;
         window.PriceAlertRequested += OpenPriceAlert;
         window.ThemeRequested += ToggleTheme;
-        tray = new(Dispatcher, manager.Show, OpenSettings, ChangeMode, () => _ = ExitAsync(), OpenAlertHistory, manager.ResetSize);
+        tray = new(Dispatcher, manager.Show, OpenSettings, ChangeMode, () => _ = ExitAsync(), OpenAlertHistory, manager.ResetSize, OpenSwapComparisons);
         InitializeDesktopPreferences(window);
         var history = new AlertHistoryService();
         alertHistory = new(history);
@@ -106,13 +108,14 @@ public partial class App : Application
         if (exiting || marketHistory is null) return;
         var demanded = GetHistoryDemand();
         marketHistory.SetDemand(demanded);
-        if (demanded.Length > 0 || settings.Holdings.Count>0) graphTimer?.Start(); else graphTimer?.Stop();
+        if (demanded.Length > 0 || settings.Holdings.Count>0 || settings.SwapComparisons.Any(s=>s.Enabled && s.InvalidReason is null)) graphTimer?.Start(); else graphTimer?.Stop();
     }
     private void RefreshMarketGraphs()
     {
         if (exiting) return;
         var now = DateTimeOffset.UtcNow;
         ticker.RefreshPortfolio(now);
+        swapComparisons?.Refresh();
         if(marketHistory is null)return;
         var demanded = GetHistoryDemand().ToHashSet(StringComparer.Ordinal);
         foreach (var row in demanded.Select(ticker.GetRow).OfType<TickerRowViewModel>())
@@ -122,13 +125,14 @@ public partial class App : Application
     private void SaveSettings()
     {
         try { settingsService.Save(settings); }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
         { tray?.ShowWarning("無法儲存設定：" + ex.Message); }
     }
     private void ChangeMode(DisplayMode mode)
     {
         if (exiting) return;
         manager!.SetMode(mode); ticker.SetMode(mode); tray!.SetMode(mode); SaveSettings(); manager.Show();
+        swapWindow?.SetMode(mode);
     }
     private void ToggleTheme()
     {
@@ -140,6 +144,7 @@ public partial class App : Application
         foreach (var window in priceAlertWindows.Values) window.RefreshTheme();
         marketDetails?.RefreshTheme();
         alertHistory?.RefreshTheme();
+        swapWindow?.RefreshTheme();
         tray?.RefreshTheme();
         SaveSettings();
     }
@@ -153,9 +158,10 @@ public partial class App : Application
     }
     private void OpenAlertHistory() { if (!exiting) alertHistory?.Show(); }
     private void OnAlertSubmitted(AlertHistoryEntry entry) => Dispatcher.BeginInvoke(() => { if (!exiting) alertHistory?.Refresh(); });
-    private async Task<bool> ApplySettingsAsync(AppSettings updated)
+    private async Task<bool> ApplySettingsCoreAsync(AppSettings updated)
     {
         if (exiting) return false;
+        PreserveSwapComparisons(updated);
         manager?.SavePosition();
         updated.Window.Left = settings.Window.Left; updated.Window.Top = settings.Window.Top;
         updated.Window.Width = settings.Window.Width; updated.Window.Height = settings.Window.Height;
@@ -173,6 +179,8 @@ public partial class App : Application
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or ArgumentException or InvalidOperationException or System.Security.SecurityException or AggregateException)
         { if (settingsWindow is not null) settingsWindow.ViewModel.Error = "儲存失敗：" + ex.Message; return false; }
         settings = updated;
+        swapComparisons?.Configure(settings);
+        swapWindow?.SetMode(settings.Mode);
         foreach (var symbol in priceAlertWindows.Keys.ToArray())
             if (!settings.Symbols.Any(s => s.Symbol == symbol)) priceAlertWindows[symbol].Close();
         RefreshAlertWindows();
@@ -236,10 +244,12 @@ public partial class App : Application
             if (marketHistory is not null) await marketHistory.ConfigureAsync(symbols);
             if (exiting) return;
             ticker.SetStatus(ConnectionStatus.Connecting);
+            swapComparisons?.SetStatus(ConnectionStatus.Connecting);
             var feed = new MarketFeed(binance, new());
             feedTask = Task.Run(() => feed.RunAsync(symbols, p => OnUi(() => QueuePriceUpdate(p)), status => OnUi(() =>
             {
                 ticker.SetStatus(status);
+                swapComparisons?.SetStatus(status);
                 marketHistory?.OnConnectionStatus(status);
                 QueueAlertConnectionStatus(status);
             }), token, candle => OnUi(() => candleCache.Merge(candle, DateTimeOffset.UtcNow))));
@@ -265,10 +275,11 @@ public partial class App : Application
     private async Task UpdatePriceAsync(TickerPrice price)
     {
         // Ignore quotes older than the row's last accepted timestamp, including reconnect snapshots.
+        swapComparisons?.Update(price);
         if (!ticker.Update(price)) return;
         try { await alerts.CheckQuoteAsync(price); }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or
-            InvalidOperationException or System.ComponentModel.Win32Exception or AggregateException)
+            ArgumentException or InvalidOperationException or System.ComponentModel.Win32Exception or AggregateException)
         {
             if (DateTimeOffset.Now - lastAlertWarning >= TimeSpan.FromMinutes(1))
             {
@@ -296,6 +307,8 @@ public partial class App : Application
     {
         if (exiting) return;
         exiting = true;
+        await settingsMutationGate.WaitAsync();
+        settingsMutationGate.Release();
         hotkeys?.Dispose();
         graphTimer?.Stop();
         ticker.WatchlistPreferencesChanged -= PersistWatchlistPreferences;
@@ -307,6 +320,8 @@ public partial class App : Application
         if (marketDetails is not null) marketDetails.OpenSymbolsChanged -= UpdateHistoryDemand;
         marketDetails?.CloseAll();
         alertHistory?.Close();
+        swapWindow?.Close();
+        swapComparisons?.Dispose();
         if (submittingAlerts is not null) submittingAlerts.Submitted -= OnAlertSubmitted;
         manager?.SavePosition(); settingsWindow?.Close();
         foreach (var window in priceAlertWindows.Values.ToArray()) window.Close();

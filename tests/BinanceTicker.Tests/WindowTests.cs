@@ -63,6 +63,7 @@ public sealed class WindowTests
                 AlertHistoryWindowTests.VerifyQuoteRouting(application);
                 WatchlistIntegrationTests.Verify(application);
                 WatchlistWindowTests.Verify(application);
+                SwapComparisonWindowTests.Verify(application);
                 var ticker = new TickerViewModel(); ticker.Configure(new());
                 ticker.Update(new("BTCUSDT", 82351.2m, 2.31m, DateTime.UtcNow));
                 ticker.Update(new("ETHUSDT", 3124.5m, 1.82m, DateTime.UtcNow));

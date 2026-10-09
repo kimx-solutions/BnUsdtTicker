@@ -8,6 +8,8 @@ namespace BinanceTicker.Views;
 public partial class TickerWindow : Window
 {
     public event Action? SettingsRequested;
+    public event Action? SwapComparisonsRequested;
+    private void SwapComparisonsClicked(object sender, RoutedEventArgs e) => SwapComparisonsRequested?.Invoke();
     public event Action? ThemeRequested;
     public event Action<string>? PriceAlertRequested;
     public event Action<string>? MarketDetailsRequested;

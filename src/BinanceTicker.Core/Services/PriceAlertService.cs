@@ -258,7 +258,7 @@ public sealed class PriceAlertService : IPriceAlertService
                 if (preserveAlerts && live is not null) item.Alert = live.Copy();
                 MergeState(item.Alert, live, resets.Where(r => r.Symbol == item.Symbol));
             }
-            store.Save(updated);
+            store.SaveWithComparisonRecovery(updated, settings);
             foreach (var item in updated.Symbols) MarkChangedWindows(item.Symbol, item.Alert, settings.Symbols.FirstOrDefault(s => s.Symbol == item.Symbol)?.Alert);
             foreach (var item in settings.Symbols.Where(s => !updated.Symbols.Any(n => n.Enabled && n.Symbol == s.Symbol))) ResetContinuity(item);
             settings = updated;

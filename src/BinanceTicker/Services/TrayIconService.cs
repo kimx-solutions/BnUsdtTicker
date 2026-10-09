@@ -13,7 +13,7 @@ public sealed class TrayIconService : IDisposable
     private readonly Drawing.Icon icon;
     private readonly Forms.ToolStripMenuItem fix;
     private readonly Forms.ToolStripMenuItem floating;
-    public TrayIconService(Dispatcher dispatcher, Action show, Action settings, Action<DisplayMode> setMode, Action exit, Action? showHistory = null, Action? resetSize = null)
+    public TrayIconService(Dispatcher dispatcher, Action show, Action settings, Action<DisplayMode> setMode, Action exit, Action? showHistory = null, Action? resetSize = null, Action? showSwaps = null)
     {
         void Dispatch(Action action) => dispatcher.BeginInvoke(action);
         menu = new()
@@ -27,6 +27,7 @@ public sealed class TrayIconService : IDisposable
         menu.Items.Add("設定", null, (_, _) => Dispatch(settings));
         if (resetSize is not null) menu.Items.Add("恢復預設大小", null, (_, _) => Dispatch(resetSize));
         if (showHistory is not null) menu.Items.Add("提醒紀錄", null, (_, _) => Dispatch(showHistory));
+        if (showSwaps is not null) menu.Items.Add("換幣比較", null, (_, _) => Dispatch(showSwaps));
         menu.Items.Add(new Forms.ToolStripSeparator());
         fix = (Forms.ToolStripMenuItem)menu.Items.Add("Fix Mode", null, (_, _) => Dispatch(() => setMode(DisplayMode.Fix)));
         floating = (Forms.ToolStripMenuItem)menu.Items.Add("Float Mode", null, (_, _) => Dispatch(() => setMode(DisplayMode.Float)));

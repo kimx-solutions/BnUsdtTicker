@@ -1,5 +1,25 @@
 # Verification — 2026-10-03
 
+## 換幣相對盈虧追蹤 — 2026-10-09
+
+- Branch: `codex/swap-comparison`，基於 `95f61bf`；實作 spec 與 plan 位於 `docs/superpowers`。
+- 初始 baseline：248 tests passed。完整 Release suite：276 passed，0 failed/skipped；新增 28 個 Core 案例，並擴充既有單一 STA 視窗整合測試。
+- 驗證命令：`dotnet test BinanceTicker.sln -c Release --artifacts-path artifacts/swap-build --no-restore --verbosity quiet`。
+- Release build：0 warnings/errors。原有程式正在執行並鎖住預設 bin，因此另用 `artifacts/swap-build` 建置與驗證。
+- 比較基準為繼續持有原幣；受控案例驗證 100 NEAR → 20 QNT，在 NEAR=5、QNT=30/20/25 時的獲利、虧損與打平。
+- Core 驗證涵蓋缺報價、零／負價格、未來報價、倒序拒絕、60 秒邊界、無新報價仍過期、斷線／停用、溢位／極小值、顯示負零；新增／編輯／取消、驗證／保存失敗與草稿保留。
+- 保存與整合驗證涵蓋 JSON 往返／舊設定／深複製、大小寫相容、訂閱去重、分組外行情、主設定保留最新換幣紀錄、保存保留持倉及最新警示、寫入失敗不改基準／有效訂閱。
+- 真實 WPF 控制項驗證主窗入口、視窗重用與解除最小化、Fix/Float 置頂、數量雙向 binding、取消及實際儲存按鈕、深／淺色、窄視窗自動捲到編輯區及固定操作區。
+- 渲染圖片位於 `artifacts/swap-previews`，包含深色、淺色、斷線與窄視窗編輯畫面；皆使用受控資料。已檢視深／淺／窄視窗，深色文字對比問題已重現並修正。
+- 獨立 read-only review 發現三項 Important 問題，均以失敗測試重現後修正：重複 ID 誤刪正常資料、多筆損壞資料無法逐筆復原、第二次損壞事件未保存當次原檔。
+- 修正採獨立復原 ID、明確修正／移除才可攜帶剩餘原始無效 JSON 的保存路徑，以及按內容雜湊保存每份不同原檔；一般保存仍阻止未修正的損壞紀錄。原始 JSON whitespace 也保持不變。
+- Windows x64 self-contained 單一執行檔：`artifacts/swap-polished-publish/BinanceTicker.exe`。沿用正式執行檔的 single-file 設定。
+- 排版美化：大字換回數量、三欄差額、兩欄市值／報價、可展開公式、完整精度 tooltip；深／淺主題及 480 × 500 DIP 預覽位於 `artifacts/swap-previews/swap-polished-example-*.png`。
+- 儲存／取消後回到比較卡片。先以失敗的 STA 捲動位置斷言重現，再修正延遲捲動 callback，完整 Release suite 通過。
+- GitHub issue 先前因連接器 403 與瀏覽器未登入而未建立；本次未改動雲端 issue、未合併或發佈 Release。
+
+仍需人工確認：實際 Binance 行情下的長時間追蹤、實體多螢幕／DPI 與焦點互動。受控行情、原生 WPF 控制項與渲染已驗證；未停止或替換使用者目前執行中的程式。
+
 ## Issue #6 — Market visualization (2026-10-04)
 
 - Follow-up: graph visibility now uses the bottom-right chart icon, immediately
