@@ -18,7 +18,7 @@ public sealed class SwapComparisonSettingConverter : JsonConverter<SwapCompariso
             {
                 Id=data.Id,FromSymbol=data.FromSymbol,FromQuantity=data.FromQuantity,
                 ToSymbol=data.ToSymbol,ToQuantity=data.ToQuantity,SwappedAt=data.SwappedAt,
-                Note=data.Note ?? "",Enabled=data.Enabled
+                Note=data.Note ?? "",Enabled=data.Enabled,Settlements=data.Settlements ?? []
             };
             record.Validate(DateTimeOffset.UtcNow);
             return record;
@@ -33,7 +33,7 @@ public sealed class SwapComparisonSettingConverter : JsonConverter<SwapCompariso
         if(value.InvalidJson is { } raw) { writer.WriteRawValue(raw);return; }
         JsonSerializer.Serialize(writer,new
         {
-            value.Id,value.FromSymbol,value.FromQuantity,value.ToSymbol,value.ToQuantity,value.SwappedAt,value.Note,value.Enabled
+            value.Id,value.FromSymbol,value.FromQuantity,value.ToSymbol,value.ToQuantity,value.SwappedAt,value.Note,value.Enabled,value.Settlements
         },options);
     }
     private sealed class ComparisonData
@@ -46,5 +46,6 @@ public sealed class SwapComparisonSettingConverter : JsonConverter<SwapCompariso
         public required DateTimeOffset SwappedAt { get; set; }
         public string? Note { get; set; }
         public bool Enabled { get; set; }=true;
+        public List<SwapSettlement>? Settlements { get; set; }
     }
 }

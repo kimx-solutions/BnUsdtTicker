@@ -5,7 +5,7 @@ using BinanceTicker.Core.Models;
 using BinanceTicker.Core.Services;
 namespace BinanceTicker.Core.ViewModels;
 
-public sealed class SwapComparisonViewModel : ObservableObject, IDisposable
+public sealed partial class SwapComparisonViewModel : ObservableObject, IDisposable
 {
     private readonly IBinanceService binance;
     private readonly Func<IReadOnlyList<SwapComparisonSetting>,Task<bool>> save;
@@ -35,7 +35,7 @@ public sealed class SwapComparisonViewModel : ObservableObject, IDisposable
     public bool IsBusy => busy;
     public bool IsEditing => editing;
     public bool EditorEnabled => editing && !busy;
-    public bool IsEmpty => Records.Count==0;
+    public bool IsEmpty => VisibleRecords.Count==0;
     public bool HasInvalid => Records.Any(r=>r.Setting.InvalidReason is not null);
     public string EditorTitle => editingId is null ? "新增換幣紀錄" : "編輯換幣紀錄";
     public RelayCommand NewCommand { get; }
@@ -49,13 +49,14 @@ public sealed class SwapComparisonViewModel : ObservableObject, IDisposable
         Func<IReadOnlyList<SwapComparisonSetting>,Task<bool>> save,TimeProvider? time=null)
     {
         this.binance=binance;this.save=save;this.time=time ?? TimeProvider.System;
-        NewCommand=new(New,()=>!busy && !editing);
-        EditCommand=new(Edit,()=>!busy && !editing && Selected is not null);
+        NewCommand=new(New,()=>!busy && !editing && !IsSettling);
+        EditCommand=new(Edit,()=>!busy && !editing && !IsSettling && Selected is not null && Selected.Setting.Settlements.Count==0);
         CancelCommand=new(Cancel,()=>!busy && editing);
         SaveCommand=new(async()=>await SaveAsync(),()=>!busy && editing);
-        DeleteCommand=new(async()=>await DeleteAsync(),()=>!busy && !editing && Selected is not null);
-        ToggleCommand=new(async()=>await ToggleAsync(),()=>!busy && !editing && Selected?.Setting.InvalidReason is null && Selected is not null);
-        RemoveInvalidCommand=new(async()=>await RemoveInvalidAsync(),()=>!busy && !editing && HasInvalid);
+        DeleteCommand=new(async()=>await DeleteAsync(),()=>!busy && !editing && !IsSettling && Selected is not null);
+        ToggleCommand=new(async()=>await ToggleAsync(),()=>!busy && !editing && !IsSettling && Selected?.Setting.InvalidReason is null && Selected is not null && !Selected.Setting.IsClosed);
+        RemoveInvalidCommand=new(async()=>await RemoveInvalidAsync(),()=>!busy && !editing && !IsSettling && HasInvalid);
+        SettleCommand=new(BeginSettlement,()=>!busy && !editing && !IsSettling && Selected is not null && Selected.Setting.InvalidReason is null && !Selected.Setting.IsClosed);
         Configure(settings);
     }
     public void Configure(AppSettings settings)
@@ -64,8 +65,12 @@ public sealed class SwapComparisonViewModel : ObservableObject, IDisposable
         Records.Clear();
         foreach(var setting in settings.SwapComparisons.OrderByDescending(s=>s.SwappedAt).ThenBy(s=>s.Id,StringComparer.Ordinal))
             Records.Add(new(setting));
-        Selected=Records.FirstOrDefault(r=>r.Setting.Id==selectedId) ?? Records.FirstOrDefault();
-        var demanded=Records.Where(r=>r.Setting.Enabled && r.Setting.InvalidReason is null)
+        ActiveRecords.Clear();HistoryRecords.Clear();
+        foreach(var row in Records.Where(r=>!r.Setting.IsClosed))ActiveRecords.Add(row);
+        foreach(var row in Records.Where(r=>r.Setting.IsClosed).OrderByDescending(r=>r.Setting.Settlements.Last().SettledAt))HistoryRecords.Add(row);
+        Selected=VisibleRecords.FirstOrDefault(r=>r.Setting.Id==selectedId) ?? VisibleRecords.FirstOrDefault();
+        Notify(nameof(ActiveHeader));Notify(nameof(HistoryHeader));
+        var demanded=Records.Where(r=>r.Setting.Enabled && r.Setting.InvalidReason is null && !r.Setting.IsClosed)
             .SelectMany(r=>new[]{r.Setting.FromSymbol,r.Setting.ToSymbol}).ToHashSet(StringComparer.Ordinal);
         foreach(var symbol in quotes.Keys.Where(s=>!demanded.Contains(s)).ToArray())quotes.Remove(symbol);
         Notify(nameof(IsEmpty));Notify(nameof(HasInvalid));RefreshCommands();Refresh();
@@ -74,7 +79,7 @@ public sealed class SwapComparisonViewModel : ObservableObject, IDisposable
     {
         var now=time.GetUtcNow();
         if(disposed || quote.Price<=0 || new DateTimeOffset(quote.UpdatedAt.ToUniversalTime())>now ||
-            !Records.Any(r=>r.Setting.Enabled && r.Setting.InvalidReason is null &&
+            !Records.Any(r=>r.Setting.Enabled && r.Setting.InvalidReason is null && !r.Setting.IsClosed &&
                 (r.Setting.FromSymbol==quote.Symbol || r.Setting.ToSymbol==quote.Symbol)) ||
             quotes.TryGetValue(quote.Symbol,out var previous) && quote.UpdatedAt<previous.UpdatedAt)return false;
         quotes[quote.Symbol]=quote;Refresh();return true;
@@ -85,17 +90,18 @@ public sealed class SwapComparisonViewModel : ObservableObject, IDisposable
         if(disposed)return;
         var now=time.GetUtcNow();
         foreach(var row in Records)row.Refresh(quotes,status,now);
+        RefreshSettlementQuotes();
     }
     public void New()
     {
-        if(busy || editing || disposed)return;
+        if(busy || editing || IsSettling || disposed)return;
         editingId=null;FromSymbolText="";ToSymbolText="";FromQuantityText="";ToQuantityText="";
         SwappedAtText=time.GetUtcNow().ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss",CultureInfo.InvariantCulture);
         NoteText="";Enabled=true;Error="";SetEditing(true);
     }
     public void Edit()
     {
-        if(busy || editing || disposed || Selected is null)return;
+        if(busy || editing || IsSettling || disposed || Selected is null || Selected.Setting.Settlements.Count>0)return;
         var record=Selected.Setting;editingId=record.Id;
         FromSymbolText=record.FromSymbol;ToSymbolText=record.ToSymbol;
         FromQuantityText=SwapComparisonRowViewModel.Exact(record.FromQuantity);
@@ -143,7 +149,7 @@ public sealed class SwapComparisonViewModel : ObservableObject, IDisposable
             var index=updated.FindIndex(r=>r.Id==record.Id);
             if(index>=0)updated[index]=record;else updated.Add(record);
             if(!await CommitAsync(updated))return false;
-            Selected=Records.First(r=>r.Setting.Id==record.Id);editingId=null;SetEditing(false);return true;
+            ViewIndex=0;Selected=Records.First(r=>r.Setting.Id==record.Id);editingId=null;SetEditing(false);return true;
         }
         catch(OperationCanceledException) when(disposed) { return false; }
         catch(Exception ex) when(IsExpected(ex))
@@ -160,7 +166,7 @@ public sealed class SwapComparisonViewModel : ObservableObject, IDisposable
     public Task<bool> RemoveInvalidAsync() => ChangeAsync(records=>records.RemoveAll(r=>r.InvalidReason is not null),requiresSelection:false);
     private async Task<bool> ChangeAsync(Action<List<SwapComparisonSetting>> change,bool requiresSelection=true)
     {
-        if(busy || editing || disposed || requiresSelection && Selected is null)return false;
+        if(busy || editing || IsSettling || disposed || requiresSelection && Selected is null)return false;
         Error="";SetBusy(true);
         try
         {
@@ -178,12 +184,13 @@ public sealed class SwapComparisonViewModel : ObservableObject, IDisposable
     }
     private static bool IsExpected(Exception ex) => ex is ArgumentException or IOException or UnauthorizedAccessException or
         HttpRequestException or OperationCanceledException or JsonException or InvalidOperationException or AggregateException or System.Security.SecurityException;
-    private void SetBusy(bool value) { busy=value;Notify(nameof(IsBusy));Notify(nameof(EditorEnabled));RefreshCommands(); }
+    private void SetBusy(bool value) { busy=value;Notify(nameof(IsBusy));Notify(nameof(EditorEnabled));SettlementEditor?.SetBusy(value);RefreshCommands(); }
     private void SetEditing(bool value) { editing=value;Notify(nameof(IsEditing));Notify(nameof(EditorEnabled));Notify(nameof(EditorTitle));RefreshCommands(); }
     private void RefreshCommands()
     {
         NewCommand.Refresh();EditCommand.Refresh();CancelCommand.Refresh();SaveCommand.Refresh();
         DeleteCommand.Refresh();ToggleCommand.Refresh();RemoveInvalidCommand.Refresh();
+        SettleCommand.Refresh();
     }
     public void Dispose() { if(disposed)return;disposed=true;lifetime.Cancel();lifetime.Dispose(); }
 }

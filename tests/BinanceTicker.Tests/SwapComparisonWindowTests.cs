@@ -96,6 +96,36 @@ internal static class SwapComparisonWindowTests
             Assert.Equal(vm.Selected.Setting.SwappedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss"),vm.SwappedAtText);
             editor.Close();Assert.Same(vm.Records[29],recordsGrid.SelectedItem);
             Render(window,"swap-many-records.png");
+            vm.SetStatus(ConnectionStatus.Connected);
+            vm.Update(new("NEARUSDT",5,0,DateTime.UtcNow));vm.Update(new("QNTUSDT",30,0,DateTime.UtcNow));
+            var settleButton=Descendants<Button>(window).Single(b=>Equals(b.Content,"結算"));
+            ((IInvokeProvider)new ButtonAutomationPeer(settleButton).GetPattern(PatternInterface.Invoke)).Invoke();
+            app.Dispatcher.Invoke(()=>{},System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+            var settlement=Assert.Single(window.OwnedWindows.Cast<Window>());settlement.UpdateLayout();
+            vm.SettlementEditor!.SettleAll=false;
+            Descendants<TextBox>(settlement).Single(b=>AutomationProperties.GetName(b)=="結算數量").Text="5";
+            Descendants<TextBox>(settlement).Single(b=>AutomationProperties.GetName(b)=="實際換回數量").Text="30";
+            ThemeService.Apply(ColorTheme.Dark);window.RefreshTheme();Render(settlement,"swap-actual-settlement.png");
+            var confirm=Descendants<Button>(settlement).Single(b=>Equals(b.Content,"確認結算"));
+            ((IInvokeProvider)new ButtonAutomationPeer(confirm).GetPattern(PatternInterface.Invoke)).Invoke();
+            app.Dispatcher.Invoke(()=>{},System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+            Assert.False(vm.IsSettling);Assert.Empty(window.OwnedWindows.Cast<Window>());
+            Assert.Equal(15,vm.Selected!.Setting.RemainingToQuantity);Render(window,"swap-partial-settlement.png");
+            vm.BeginSettlement();settlement=Assert.Single(window.OwnedWindows.Cast<Window>());settlement.UpdateLayout();
+            Descendants<RadioButton>(settlement).Single(b=>Equals(b.Content,"當下報價")).IsChecked=true;
+            Assert.True(vm.SettlementEditor!.UseMarketQuote);Render(settlement,"swap-quote-settlement.png");
+            confirm=Descendants<Button>(settlement).Single(b=>Equals(b.Content,"確認結算"));
+            ((IInvokeProvider)new ButtonAutomationPeer(confirm).GetPattern(PatternInterface.Invoke)).Invoke();
+            app.Dispatcher.Invoke(()=>{},System.Windows.Threading.DispatcherPriority.ApplicationIdle);window.UpdateLayout();
+            Assert.False(vm.IsSettling);Assert.Equal(1,vm.ViewIndex);Assert.Single(vm.HistoryRecords);
+            Assert.Same(vm.HistoryRecords[0],recordsGrid.SelectedItem);Assert.Equal(120,vm.Selected!.Result.ReturnQuantity);
+            Assert.Contains(Descendants<TextBlock>(window),t=>t.Text=="已全部結算");
+            var detailScroll=Descendants<ScrollViewer>(window).Single(s=>s.Content is Border);
+            detailScroll.ScrollToBottom();Render(window,"swap-settlement-history.png");
+            Assert.Contains(Descendants<TextBlock>(window),t=>t.Text=="實際成交");
+            Assert.Contains(Descendants<TextBlock>(window),t=>t.Text=="報價結算");
+            Descendants<TabControl>(window).Single().SelectedIndex=0;Assert.Equal(0,vm.ViewIndex);
+            Assert.Equal(29,recordsGrid.Items.Count);
         }
         finally { manager.Close();ThemeService.Apply(ColorTheme.Dark); }
         VerifyAppSave(app);

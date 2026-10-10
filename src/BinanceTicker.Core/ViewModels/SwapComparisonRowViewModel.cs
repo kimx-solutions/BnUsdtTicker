@@ -12,8 +12,25 @@ public sealed class SwapComparisonRowViewModel(SwapComparisonSetting setting) : 
     public string FromAsset => SwapComparisonCalculator.Asset(Setting.FromSymbol);
     public string ToAsset => SwapComparisonCalculator.Asset(Setting.ToSymbol);
     public string Title => Setting.InvalidReason is not null ? "損壞的換幣紀錄" :
-        $"{Exact(Setting.FromQuantity)} {FromAsset} → {Exact(Setting.ToQuantity)} {ToAsset}";
-    public string TimeText => Setting.InvalidReason is not null ? "請修正或刪除，原檔備份已保留" : Setting.SwappedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss");
+        Setting.IsClosed ? OriginalTitle : $"{Exact(Setting.RemainingFromQuantity)} {FromAsset} → {Exact(Setting.RemainingToQuantity)} {ToAsset}";
+    public string OriginalTitle => $"{Exact(Setting.FromQuantity)} {FromAsset} → {Exact(Setting.ToQuantity)} {ToAsset}";
+    public string TimeText => Setting.InvalidReason is not null ? "請修正或刪除，原檔備份已保留" :
+        (Setting.IsClosed ? Setting.Settlements.Last().SettledAt : Setting.SwappedAt).ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss");
+    public bool IsOpen => !Setting.IsClosed;
+    public bool HasSettlements => Setting.Settlements.Count>0;
+    public string ReturnLabel => Setting.IsClosed ? "累計結算換回" : "剩餘現在可換回";
+    public string FromValueLabel => Setting.IsClosed ? "原幣基準市值 · 各次結算參考價" : $"剩餘原幣若持有至今 · {FromAsset}";
+    public string ToValueLabel => Setting.IsClosed ? "結算換回市值 · 各次結算參考價" : $"剩餘換入幣現在市值 · {ToAsset}";
+    public string SettlementSummary
+    {
+        get
+        {
+            if(!HasSettlements)return "";
+            var total=SwapComparisonCalculator.SettledValue(Setting);
+            return $"原始換幣：{OriginalTitle} · {Setting.SwappedAt.ToLocalTime():yyyy-MM-dd HH:mm:ss}\n已結算 {Exact(Setting.Settlements.Sum(s=>s.ToQuantity))} {ToAsset}，累計換回 {Quantity(total.ReturnQuantity)} {FromAsset} · 原幣差額 {Signed(total.QuantityDifference)} {FromAsset}\nUSDT 差額 {SignedMoney(total.UsdtDifference)} · 相對報酬率 {Percent(total.ReturnPercent)}（未填參考價時 USDT 差額留空）";
+        }
+    }
+    public IReadOnlyList<SwapSettlementRowViewModel> SettlementRows => Setting.Settlements.Select(s=>new SwapSettlementRowViewModel(s,FromAsset,ToAsset)).ToArray();
     public string ReturnText => $"{Quantity(result.ReturnQuantity)} {FromAsset}";
     public string QuantityDifferenceText => $"{Signed(result.QuantityDifference)} {FromAsset}";
     public string UsdtDifferenceText => SignedMoney(result.UsdtDifference);
@@ -29,7 +46,8 @@ public sealed class SwapComparisonRowViewModel(SwapComparisonSetting setting) : 
     public string StateText => result.StateText;
     public string ValuesText => $"原幣若持有至今：{Money(result.FromValue)} USDT\n換入幣現在市值：{Money(result.ToValue)} USDT";
     public string QuotesText => QuoteText(fromQuote,FromAsset)+"\n"+QuoteText(toQuote,ToAsset);
-    public string FormulaText => $"可換回 {FromAsset} = {Exact(Setting.ToQuantity)} × {ToAsset} 現價 ÷ {FromAsset} 現價\n幣數差額 = 可換回數量 − {Exact(Setting.FromQuantity)}\nUSDT 差額 = 換入幣市值 − 原幣若持有至今的市值";
+    public string FormulaText => Setting.IsClosed ? "已結算結果依各次保存的換回數量與參考價加總，不再隨即時報價更新。實際成交與報價結算分別標示於下方明細。" :
+        $"可換回 {FromAsset} = {Exact(Setting.RemainingToQuantity)} × {ToAsset} 現價 ÷ {FromAsset} 現價\n幣數差額 = 可換回數量 − {Exact(Setting.RemainingFromQuantity)}\nUSDT 差額 = 剩餘換入幣市值 − 剩餘原幣若持有至今的市值";
     public string ProblemText => Setting.InvalidReason ?? "";
     public string ToggleText => Setting.Enabled ? "停用追蹤" : "啟用追蹤";
     public int Direction => result.QuantityDifference is null ? 0 : Math.Sign(decimal.Round(result.QuantityDifference.Value,10));

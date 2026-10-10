@@ -98,15 +98,22 @@
             <TextBlock Text="以原幣為基準比較多筆換幣。選取查看詳情，雙擊編輯。" Style="{StaticResource Label}" Margin="0,8,0,12"/>
             <WrapPanel Margin="0,0,0,12">
                 <Button Content="新增" Command="{Binding NewCommand}" Margin="0,0,8,8" Style="{StaticResource SettingsPrimaryButton}"/>
+                <Button Content="結算" Command="{Binding SettleCommand}" Margin="0,0,8,8"/>
                 <Button Content="編輯" Command="{Binding EditCommand}" Margin="0,0,8,8"/>
                 <Button Content="{Binding Selected.ToggleText, FallbackValue=啟用／停用}" Command="{Binding ToggleCommand}" Margin="0,0,8,8"/>
                 <Button Content="刪除" Click="DeleteClicked" x:Name="DeleteButton" Margin="0,0,8,8"/>
                 <Button Content="移除所有損壞紀錄" Click="RemoveInvalidClicked" Visibility="{Binding HasInvalid, Converter={StaticResource VisibleWhenTrue}}"/>
             </WrapPanel>
         </StackPanel>
+        <TabControl DockPanel.Dock="Top" SelectedIndex="{Binding ViewIndex, Mode=TwoWay}" Margin="0,0,0,12" AutomationProperties.Name="換幣紀錄分類">
+            <TabControl.Template><ControlTemplate TargetType="TabControl"><TabPanel IsItemsHost="True" /></ControlTemplate></TabControl.Template>
+            <TabItem Header="{Binding ActiveHeader}" Style="{StaticResource SettingsTab}" />
+            <TabItem Header="{Binding HistoryHeader}" Style="{StaticResource SettingsTab}" />
+        </TabControl>
+        <TextBlock DockPanel.Dock="Top" Text="{Binding ResultHeading}" Style="{StaticResource Label}" Margin="0,0,0,10" />
         <StackPanel DockPanel.Dock="Bottom" Margin="0,12,0,0">
             <TextBlock Text="{Binding Error}" Foreground="{DynamicResource ThemeNegative}" TextWrapping="Wrap"/>
-            <TextBlock Text="相較繼續持有原幣 · 未扣除換回費用 · 各筆獨立比較" Style="{StaticResource Label}" FontSize="11" Margin="0"/>
+            <TextBlock Text="相較繼續持有原幣 · 報價結算未扣費用，實際成交以到帳數量為準 · 各筆獨立比較" Style="{StaticResource Label}" FontSize="11" Margin="0"/>
         </StackPanel>
         <Grid>
             <Grid.RowDefinitions>
@@ -115,7 +122,7 @@
                 <RowDefinition Height="*" MinHeight="100"/>
             </Grid.RowDefinitions>
             <Grid>
-                <DataGrid x:Name="RecordsGrid" ItemsSource="{Binding Records}" SelectedItem="{Binding Selected, Mode=TwoWay}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" CanUserDeleteRows="False" CanUserSortColumns="False" CanUserReorderColumns="False" SelectionMode="Single" SelectionUnit="FullRow" HeadersVisibility="Column" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="{DynamicResource SettingsBorder}" Background="{DynamicResource SettingsSurface}" Foreground="{DynamicResource SettingsText}" BorderBrush="{DynamicResource SettingsBorder}" RowHeight="44" ColumnHeaderHeight="38" EnableRowVirtualization="True" EnableColumnVirtualization="False" ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Auto" MouseDoubleClick="RecordDoubleClicked" PreviewKeyDown="RecordsKeyDown" AutomationProperties.Name="換幣紀錄">
+                <DataGrid x:Name="RecordsGrid" ItemsSource="{Binding VisibleRecords}" SelectedItem="{Binding Selected, Mode=TwoWay}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" CanUserDeleteRows="False" CanUserSortColumns="False" CanUserReorderColumns="False" SelectionMode="Single" SelectionUnit="FullRow" HeadersVisibility="Column" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="{DynamicResource SettingsBorder}" Background="{DynamicResource SettingsSurface}" Foreground="{DynamicResource SettingsText}" BorderBrush="{DynamicResource SettingsBorder}" RowHeight="44" ColumnHeaderHeight="38" EnableRowVirtualization="True" EnableColumnVirtualization="False" ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Auto" MouseDoubleClick="RecordDoubleClicked" PreviewKeyDown="RecordsKeyDown" AutomationProperties.Name="換幣紀錄">
                     <DataGrid.Resources>
                         <Style TargetType="ScrollBar"/>
                         <Style x:Key="TableText" TargetType="TextBlock">
@@ -157,7 +164,7 @@
                         </Style>
                     </DataGrid.Resources>
                     <DataGrid.Columns>
-                        <DataGridTemplateColumn Header="換幣時間" Width="150">
+                        <DataGridTemplateColumn Header="換幣／結算時間" Width="150">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <TextBlock Text="{Binding TimeText}" Style="{StaticResource TableText}" Margin="10,0" VerticalAlignment="Center" ToolTip="{Binding ExactResultsText}"/>
@@ -171,7 +178,7 @@
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
-                        <DataGridTemplateColumn Header="現在可換回" Width="135">
+                        <DataGridTemplateColumn Header="換回原幣數量" Width="135">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <TextBlock Text="{Binding ReturnText}" Style="{StaticResource TableText}" Margin="10,0" VerticalAlignment="Center" ToolTip="{Binding ExactResultsText}"/>
@@ -208,7 +215,7 @@
                         </DataGridTemplateColumn>
                     </DataGrid.Columns>
                 </DataGrid>
-                <TextBlock Text="尚未建立紀錄。按「新增」記下你的一次換幣。" TextWrapping="Wrap" Margin="20,60,20,0" HorizontalAlignment="Center" VerticalAlignment="Top" IsHitTestVisible="False" Visibility="{Binding IsEmpty, Converter={StaticResource VisibleWhenTrue}}"/>
+                <TextBlock Text="{Binding EmptyText}" TextWrapping="Wrap" Margin="20,60,20,0" HorizontalAlignment="Center" VerticalAlignment="Top" IsHitTestVisible="False" Visibility="{Binding IsEmpty, Converter={StaticResource VisibleWhenTrue}}"/>
             </Grid>
             <GridSplitter Grid.Row="1" Height="6" HorizontalAlignment="Stretch" VerticalAlignment="Center" Background="{DynamicResource SettingsBorder}" ResizeDirection="Rows" ResizeBehavior="PreviousAndNext"/>
             <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
@@ -226,7 +233,7 @@
                         <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="15" TextWrapping="Wrap" Margin="0,0,0,12"/>
                         <UniformGrid Columns="4" Margin="0,0,0,16" ToolTip="{Binding ExactResultsText}">
                             <StackPanel Margin="0,0,12,0">
-                                <TextBlock Text="現在可換回" Style="{StaticResource MetricLabel}"/>
+                                <TextBlock Text="{Binding ReturnLabel}" Style="{StaticResource MetricLabel}"/>
                                 <TextBlock Text="{Binding ReturnText}" Style="{StaticResource QuoteValue}"/>
                             </StackPanel>
                             <StackPanel Margin="0,0,12,0">
@@ -249,16 +256,16 @@
                                 <ColumnDefinition/>
                             </Grid.ColumnDefinitions>
                             <StackPanel>
-                                <TextBlock Text="{Binding FromAsset, StringFormat=原幣若持有至今 · {0}}" Style="{StaticResource MetricLabel}"/>
+                                <TextBlock Text="{Binding FromValueLabel}" Style="{StaticResource MetricLabel}"/>
                                 <TextBlock Text="{Binding FromValueText}" Style="{StaticResource QuoteValue}" FontSize="18"/>
                             </StackPanel>
                             <StackPanel Grid.Column="2">
-                                <TextBlock Text="{Binding ToAsset, StringFormat=換入幣現在市值 · {0}}" Style="{StaticResource MetricLabel}"/>
+                                <TextBlock Text="{Binding ToValueLabel}" Style="{StaticResource MetricLabel}"/>
                                 <TextBlock Text="{Binding ToValueText}" Style="{StaticResource QuoteValue}" FontSize="18"/>
                             </StackPanel>
                         </Grid>
                         <Border Height="1" Background="{DynamicResource SettingsBorder}" Margin="0,12,0,10"/>
-                        <Grid ToolTip="{Binding QuotesText}">
+                        <Grid ToolTip="{Binding QuotesText}" Visibility="{Binding IsOpen, Converter={StaticResource VisibleWhenTrue}}">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition/>
                                 <ColumnDefinition Width="20"/>
@@ -278,6 +285,23 @@
                         <Expander Header="計算方式" Style="{StaticResource FormulaDisclosure}" Margin="0,12,0,0" AutomationProperties.Name="計算方式">
                             <TextBlock Text="{Binding FormulaText}" Foreground="{DynamicResource SettingsMuted}" TextWrapping="Wrap"/>
                         </Expander>
+                        <StackPanel Visibility="{Binding HasSettlements, Converter={StaticResource VisibleWhenTrue}}" Margin="0,16,0,0">
+                            <TextBlock Text="結算明細" FontWeight="SemiBold" FontSize="15" Margin="0,0,0,10" />
+                            <TextBlock Text="{Binding SettlementSummary}" Style="{StaticResource Label}" Margin="0,0,0,12" />
+                            <ItemsControl ItemsSource="{Binding SettlementRows}" AutomationProperties.Name="結算明細">
+                                <ItemsControl.ItemTemplate><DataTemplate>
+                                    <Border BorderBrush="{DynamicResource SettingsBorder}" BorderThickness="0,1,0,0" Padding="0,12" ToolTip="{Binding SnapshotText}">
+                                        <StackPanel>
+                                            <DockPanel><TextBlock DockPanel.Dock="Right" Text="{Binding ModeText}" Foreground="{DynamicResource SettingsAccent}" /><TextBlock Text="{Binding TimeText}" Style="{StaticResource MetricLabel}" /></DockPanel>
+                                            <TextBlock Text="{Binding AmountText}" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,0,0,6" />
+                                            <TextBlock Text="{Binding ResultText}" Style="{StaticResource Difference}" Margin="0,0,0,6" />
+                                            <TextBlock Text="{Binding ReferenceText}" Style="{StaticResource MetricLabel}" />
+                                            <TextBlock Text="{Binding NoteText}" Style="{StaticResource OptionalText}" />
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate></ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
                         <TextBlock Text="{Binding Setting.Note}" Style="{StaticResource OptionalText}"/>
                         <TextBlock Text="{Binding ProblemText}" Foreground="{DynamicResource ThemeNegative}" Style="{StaticResource OptionalText}"/>
                     </StackPanel>

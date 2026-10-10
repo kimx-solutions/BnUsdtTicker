@@ -12,13 +12,14 @@ public partial class SwapComparisonWindow : Window
     public SwapComparisonViewModel ViewModel { get; }
     internal bool ClosingForExit { get; set; }
     private SwapComparisonEditorWindow? editor;
+    private SwapSettlementWindow? settlementWindow;
     public SwapComparisonWindow(SwapComparisonViewModel viewModel)
     {
         InitializeComponent();ViewModel=viewModel;DataContext=viewModel;
         MaxWidth=SystemParameters.WorkArea.Width;MaxHeight=SystemParameters.WorkArea.Height;
         Width=Math.Min(Width,MaxWidth);Height=Math.Min(Height,MaxHeight);
         ViewModel.PropertyChanged+=Changed;
-        Closed+=(_,_)=>{ViewModel.PropertyChanged-=Changed;ViewModel.Cancel();};
+        Closed+=(_,_)=>{ViewModel.PropertyChanged-=Changed;ViewModel.Cancel();ViewModel.CancelSettlement();};
         RefreshButtons();
     }
     protected override void OnSourceInitialized(EventArgs e) { base.OnSourceInitialized(e);RefreshTheme(); }
@@ -26,12 +27,14 @@ public partial class SwapComparisonWindow : Window
     {
         if(ViewModel.IsBusy && !ClosingForExit)e.Cancel=true;
         if(!e.Cancel && editor is not null) { editor.ClosingForOwner=true;editor.Close(); }
+        if(!e.Cancel && settlementWindow is not null) { settlementWindow.ClosingForOwner=true;settlementWindow.Close(); }
         base.OnClosing(e);
     }
     public void RefreshTheme()
     {
         ThemeService.RefreshWindowFrame(this);
         if(editor is not null)ThemeService.RefreshWindowFrame(editor);
+        if(settlementWindow is not null)ThemeService.RefreshWindowFrame(settlementWindow);
     }
     private void Changed(object? sender,PropertyChangedEventArgs e)
     {
@@ -45,6 +48,16 @@ public partial class SwapComparisonWindow : Window
                 IsEnabled=false;editor.Show();
             }
             else if(!ViewModel.IsEditing && editor is not null)editor.Close();
+        }
+        if(e.PropertyName==nameof(ViewModel.IsSettling))
+        {
+            if(ViewModel.IsSettling && settlementWindow is null)
+            {
+                settlementWindow=new(ViewModel) { Owner=this,Topmost=Topmost };
+                settlementWindow.Closed+=(_,_)=> { settlementWindow=null;IsEnabled=true;ViewModel.CancelSettlement();Activate(); };
+                IsEnabled=false;settlementWindow.Show();
+            }
+            else if(!ViewModel.IsSettling && settlementWindow is not null)settlementWindow.Close();
         }
         if(e.PropertyName==nameof(ViewModel.Selected) && ViewModel.Selected is not null)
             RecordsGrid.ScrollIntoView(ViewModel.Selected);
