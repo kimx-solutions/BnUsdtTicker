@@ -1,5 +1,8 @@
 using System.ComponentModel;
 using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Input;
+using System.Windows.Media;
 using BinanceTicker.Core.ViewModels;
 using BinanceTicker.Services;
 namespace BinanceTicker.Views;
@@ -8,6 +11,7 @@ public partial class SwapComparisonWindow : Window
 {
     public SwapComparisonViewModel ViewModel { get; }
     internal bool ClosingForExit { get; set; }
+    private SwapComparisonEditorWindow? editor;
     public SwapComparisonWindow(SwapComparisonViewModel viewModel)
     {
         InitializeComponent();ViewModel=viewModel;DataContext=viewModel;
@@ -21,18 +25,40 @@ public partial class SwapComparisonWindow : Window
     protected override void OnClosing(CancelEventArgs e)
     {
         if(ViewModel.IsBusy && !ClosingForExit)e.Cancel=true;
+        if(!e.Cancel && editor is not null) { editor.ClosingForOwner=true;editor.Close(); }
         base.OnClosing(e);
     }
-    public void RefreshTheme() => ThemeService.RefreshWindowFrame(this);
+    public void RefreshTheme()
+    {
+        ThemeService.RefreshWindowFrame(this);
+        if(editor is not null)ThemeService.RefreshWindowFrame(editor);
+    }
     private void Changed(object? sender,PropertyChangedEventArgs e)
     {
         RefreshButtons();
         if(e.PropertyName==nameof(ViewModel.IsEditing))
-            Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded,new Action(()=>
+        {
+            if(ViewModel.IsEditing && editor is null)
             {
-                if(ViewModel.IsEditing)EditorPanel.BringIntoView();
-                else ComparisonScroll.ScrollToTop();
-            }));
+                editor=new SwapComparisonEditorWindow(ViewModel) { Owner=this,Topmost=Topmost };
+                editor.Closed+=(_,_)=> { editor=null;IsEnabled=true;Activate(); };
+                IsEnabled=false;editor.Show();
+            }
+            else if(!ViewModel.IsEditing && editor is not null)editor.Close();
+        }
+        if(e.PropertyName==nameof(ViewModel.Selected) && ViewModel.Selected is not null)
+            RecordsGrid.ScrollIntoView(ViewModel.Selected);
+    }
+    private void RecordDoubleClicked(object sender,MouseButtonEventArgs e)
+    {
+        var source=e.OriginalSource as DependencyObject;
+        while(source is not null && source is not DataGridRow)source=VisualTreeHelper.GetParent(source);
+        if(source is DataGridRow && ViewModel.EditCommand.CanExecute(null))ViewModel.EditCommand.Execute(null);
+    }
+    private void RecordsKeyDown(object sender,KeyEventArgs e)
+    {
+        if(e.Key is Key.Enter or Key.F2 && ViewModel.EditCommand.CanExecute(null))
+        { ViewModel.EditCommand.Execute(null);e.Handled=true; }
     }
     private void RefreshButtons() => DeleteButton.IsEnabled=ViewModel.DeleteCommand.CanExecute(null);
     private void DeleteClicked(object sender,RoutedEventArgs e)

@@ -4,6 +4,7 @@ using System.Windows.Automation;
 using System.Windows.Automation.Peers;
 using System.Windows.Automation.Provider;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using BinanceTicker.Core.Models;
@@ -29,7 +30,9 @@ internal static class SwapComparisonWindowTests
             Assert.True(window.Topmost);window.WindowState=WindowState.Minimized;
             Assert.Same(window,manager.Show());Assert.Equal(WindowState.Normal,window.WindowState);
             window.UpdateLayout();Assert.Contains(Descendants<TextBlock>(window),t=>t.Text.Contains("+20.00%"));
-            var title=Descendants<TextBlock>(window).Single(t=>t.Text=="100 NEAR → 20 QNT");
+            var recordsGrid=Assert.Single(Descendants<DataGrid>(window));
+            Assert.Same(vm.Selected,recordsGrid.SelectedItem);
+            var title=Descendants<TextBlock>(window).First(t=>t.Text=="100 NEAR → 20 QNT");
             Assert.Equal(Color.FromRgb(0xE4,0xF3,0xFF),((SolidColorBrush)title.Foreground).Color);
             var disclosure=Descendants<Expander>(window).Single(e=>Equals(e.Header,"計算方式"));
             Assert.False(disclosure.IsExpanded);disclosure.IsExpanded=true;window.UpdateLayout();
@@ -45,18 +48,27 @@ internal static class SwapComparisonWindowTests
                 Assert.True(called);
             }
             finally { ticker.Close(); }
-            vm.Selected=vm.Records[0];vm.Edit();window.UpdateLayout();
-            var quantity=Descendants<TextBox>(window).Single(b=>AutomationProperties.GetName(b)=="實際換入數量");
+            vm.Selected=vm.Records[0];recordsGrid.Focus();
+            recordsGrid.RaiseEvent(new KeyEventArgs(Keyboard.PrimaryDevice,PresentationSource.FromVisual(recordsGrid)!,0,Key.F2)
+            { RoutedEvent=Keyboard.PreviewKeyDownEvent });window.UpdateLayout();
+            var editor=Assert.Single(window.OwnedWindows.Cast<Window>());
+            editor.UpdateLayout();
+            var quantity=Descendants<TextBox>(editor).Single(b=>AutomationProperties.GetName(b)=="實際換入數量");
+            quantity.Text="0";Assert.False(vm.SaveAsync().GetAwaiter().GetResult());
+            Assert.True(editor.IsVisible);Assert.True(vm.IsEditing);Assert.False(window.IsEnabled);
+            Assert.Equal(20,vm.Records[0].Setting.ToQuantity);
             quantity.Text="15";Assert.Equal("15",vm.ToQuantityText);
             vm.Cancel();Assert.Equal(20,vm.Records[0].Setting.ToQuantity);
-            vm.Edit();window.UpdateLayout();quantity.Text="15";
-            var saveButton=Descendants<Button>(window).Single(b=>Equals(b.Content,"儲存紀錄"));
+            Assert.Empty(window.OwnedWindows.Cast<Window>());
+            vm.Edit();editor=Assert.Single(window.OwnedWindows.Cast<Window>());editor.UpdateLayout();
+            quantity=Descendants<TextBox>(editor).Single(b=>AutomationProperties.GetName(b)=="實際換入數量");quantity.Text="15";
+            var saveButton=Descendants<Button>(editor).Single(b=>Equals(b.Content,"儲存紀錄"));
             ((IInvokeProvider)new ButtonAutomationPeer(saveButton).GetPattern(PatternInterface.Invoke)).Invoke();
             app.Dispatcher.Invoke(()=>{},System.Windows.Threading.DispatcherPriority.ApplicationIdle);
             Assert.False(vm.IsEditing);Assert.Equal(15,vm.Records[0].Setting.ToQuantity);
             Assert.Equal(90,vm.Records[0].Result.ReturnQuantity);
-            var comparisonScroll=Descendants<ScrollViewer>(window).Single(s=>s.Content is StackPanel);
-            Assert.Equal(0,comparisonScroll.VerticalOffset);
+            Assert.Same(vm.Records[0],recordsGrid.SelectedItem);
+            Assert.Empty(window.OwnedWindows.Cast<Window>());
             vm.SetStatus(ConnectionStatus.Disconnected);Render(window,"swap-disconnected.png");
             Assert.Contains(Descendants<TextBlock>(window),t=>t.Text=="使用最後報價");
             manager.SetMode(DisplayMode.Float);Assert.False(window.Topmost);
@@ -70,9 +82,20 @@ internal static class SwapComparisonWindowTests
             window.Width=480;window.Height=500;vm.New();
             app.Dispatcher.Invoke(()=>{},System.Windows.Threading.DispatcherPriority.ApplicationIdle);
             Render(window,"swap-narrow-editor.png");
-            var fromInput=Descendants<TextBox>(window).Single(b=>AutomationProperties.GetName(b)=="換出幣種");
-            Assert.InRange(fromInput.TranslatePoint(new Point(0,0),window).Y,0,window.ActualHeight);
-            Assert.True(Descendants<Button>(window).Single(b=>Equals(b.Content,"取消編輯")).IsVisible);
+            editor=Assert.Single(window.OwnedWindows.Cast<Window>());editor.UpdateLayout();Render(editor,"swap-editor.png");
+            var fromInput=Descendants<TextBox>(editor).Single(b=>AutomationProperties.GetName(b)=="換出幣種");
+            Assert.InRange(fromInput.TranslatePoint(new Point(0,0),editor).Y,0,editor.ActualHeight);
+            Assert.True(Descendants<Button>(editor).Single(b=>Equals(b.Content,"取消編輯")).IsVisible);
+            editor.Close();Assert.False(vm.IsEditing);
+            Assert.True(window.IsEnabled);
+            var many=Enumerable.Range(0,30).Select(i=>{var item=record.Copy();item.Id=Guid.NewGuid().ToString("N");item.SwappedAt=record.SwappedAt.AddMinutes(-i);return item;}).ToList();
+            vm.Configure(new(){SwapComparisons=many});window.Width=1060;window.Height=780;window.UpdateLayout();
+            recordsGrid.ScrollIntoView(vm.Records[29]);recordsGrid.SelectedItem=vm.Records[29];window.UpdateLayout();
+            Assert.Same(vm.Records[29],vm.Selected);
+            vm.Edit();editor=Assert.Single(window.OwnedWindows.Cast<Window>());editor.UpdateLayout();
+            Assert.Equal(vm.Selected.Setting.SwappedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss"),vm.SwappedAtText);
+            editor.Close();Assert.Same(vm.Records[29],recordsGrid.SelectedItem);
+            Render(window,"swap-many-records.png");
         }
         finally { manager.Close();ThemeService.Apply(ColorTheme.Dark); }
         VerifyAppSave(app);
