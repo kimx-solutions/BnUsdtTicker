@@ -1,6 +1,8 @@
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
+using System.Windows.Input;
 using System.Windows.Interop;
 using System.Runtime.InteropServices;
 using System.Reflection;
@@ -24,6 +26,19 @@ internal static class WatchlistWindowTests
             var selector=Descendants<ComboBox>(window).Single(b=>AutomationProperties.GetName(b)=="自選分組");
             Assert.False(TickerWindowManager.IsDragSource(selector));Assert.Equal("長期",((WatchlistGroup)selector.SelectedItem).Name);
             Assert.Contains(Descendants<TextBlock>(selector),b=>b.Text=="長期");
+            selector.IsDropDownOpen=true;
+            app.Dispatcher.Invoke(()=>{},System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+            var popup=(Popup)selector.Template.FindName("PART_Popup",selector);
+            var option=(ComboBoxItem)selector.ItemContainerGenerator.ContainerFromIndex(1);
+            Assert.False(TickerWindowManager.IsDragSource(option),"Dropdown options must not start a window drag.");
+            Assert.False(TickerWindowManager.IsDragSource(Descendants<TextBlock>(option).Single()),"Option labels in a popup must not start a window drag.");
+            Assert.False(TickerWindowManager.IsDragSource(popup.Child),"Dropdown background must not start a window drag.");
+            option.RaiseEvent(new MouseButtonEventArgs(Mouse.PrimaryDevice,Environment.TickCount,MouseButton.Left) { RoutedEvent=Mouse.MouseUpEvent });
+            app.Dispatcher.Invoke(()=>{},System.Windows.Threading.DispatcherPriority.DataBind);
+            Assert.Equal("b",vm.ActiveWatchlistId);Assert.False(selector.IsDropDownOpen);
+            Assert.Equal("短線",Assert.Single(Descendants<TextBlock>(selector)).Text);
+            Assert.Equal("BTCUSDT",Assert.Single(vm.Prices).Symbol);
+            selector.SelectedItem=vm.Watchlists[0];
             selector.SelectedItem=vm.Watchlists[1];app.Dispatcher.Invoke(()=>{},System.Windows.Threading.DispatcherPriority.DataBind);Assert.Equal("b",vm.ActiveWatchlistId);
             vm.Configure(s.Copy());app.Dispatcher.Invoke(()=>{},System.Windows.Threading.DispatcherPriority.ApplicationIdle);window.UpdateLayout();
             Assert.NotNull(selector.SelectedItem);Assert.Equal("長期",((WatchlistGroup)selector.SelectedItem).Name);

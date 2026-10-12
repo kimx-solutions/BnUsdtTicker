@@ -64,7 +64,11 @@ public sealed class TickerWindowManager : IDisposable
     public static bool IsDragSource(DependencyObject target)
     {
         for (DependencyObject? current = target; current is not null; current = Parent(current))
-            if (current is ButtonBase or Thumb or ScrollBar or TextBoxBase or ComboBox) return false;
+        {
+            // Popup content has its own visual tree; it cannot reach the owning ComboBox.
+            if (current is ButtonBase or Thumb or ScrollBar or TextBoxBase or ComboBox or ComboBoxItem or Popup
+                || current is FrameworkElement { Parent: Popup }) return false;
+        }
         return true;
     }
     private static DependencyObject? Parent(DependencyObject target) => target is Visual or Visual3D
